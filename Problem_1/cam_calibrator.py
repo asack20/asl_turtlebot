@@ -169,18 +169,19 @@ class CameraCalibrator:
                             V[2 * k, :] = v
                     elif j == 1:
                         V[2 * k + 1, :] = V[2 * k + 1, :] - v
-
-        b = np.linalg.solve(V, 0)
-        B = np.zeros(3, 3)
-        B[0, 0] = b[0]
-        B[0, 1] = b[1]
-        B[1, 0] = b[1]
-        B[1, 1] = b[2]
-        B[0, 2] = b[3]
-        B[2, 0] = b[3]
-        B[1, 2] = b[4]
-        B[2, 1] = b[4]
-        B[2, 2] = b[5]
+        (U, S, Vt) = np.linalg.svd(V)
+        b = Vt[-1,:]
+        #b = np.linalg.solve(V, 0)
+        #B = np.zeros(3, 3)
+        #B[0, 0] = b[0]
+        #B[0, 1] = b[1]
+        #B[1, 0] = b[1]
+        #B[1, 1] = b[2]
+        #B[0, 2] = b[3]
+        #B[2, 0] = b[3]
+        #B[1, 2] = b[4]
+        #B[2, 1] = b[4]
+        #B[2, 2] = b[5]
         v_0 = (b[1] * b[3] - b[0] * b[4]) / (b[0] * b[2] - b[1] ** 2)
         lam = b[5] - (b[3] ** 2 + v_0 * (b[1] * b[3] - b[0] * b[4])) / b[0]
         alpha = np.sqrt(lam / b[0])
