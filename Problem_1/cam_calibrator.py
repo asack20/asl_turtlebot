@@ -168,8 +168,16 @@ class CameraCalibrator:
             t: the translation vector
         """
         ########## Code starts here ##########
+        A_inv = np.linalg.inv(A)
+        lam = 1/(np.linalg.norm(A_inv @ H[:,1]))
+        R_initial = np.zeros(3,3)
+        R_initial[:,1] = lam * A_inv @ H[:,1]
+        R_initial[:,2] = lam * A_inv @ H[:,2]
+        R_initial[:,3] = np.cross(R_initial[:,1], R_initial[:,2])
+        t = lam * A_inv @ H[:,3]
 
-
+        (U, S, Vt) = np.linalg.svd(R_initial)
+        R = U @ np.transpose(Vt)
 
 
 
