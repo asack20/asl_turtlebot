@@ -108,7 +108,7 @@ class CameraCalibrator:
         x = np.arange(0, self.n_corners_x*self.d_square, self.d_square)
         y = np.arange(0, self.n_corners_y*self.d_square, self.d_square)
         xv, yv = np.meshgrid(x, y, indexing='xy')
-        corner_coordinates = (xv, yv)
+        corner_coordinates = ([xv]*self.n_chessboards, [yv]*self.n_chessboards)
         ########## Code ends here ##########
         return corner_coordinates
 
