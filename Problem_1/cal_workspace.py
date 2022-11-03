@@ -21,13 +21,15 @@ def main():
     #             so that you don't have to click through 23 images for each step
     # display_flag: True to display images and corners as they are loaded
     #               Feel free to change this to False while developing/debugging
-    n_disp_img = 23
+    n_disp_img = 2
     display_flag = True
 
     cc.loadImages(cal_img_path, name, n_corners, square_length, n_disp_img, display_flag)
 
     u_meas, v_meas = cc.getMeasuredPixImageCoord()
     X, Y = cc.genCornerCoordinates(u_meas, v_meas)
+    print(X)
+    print(Y)
 
     H = []
     for p in range(cc.n_chessboards):
