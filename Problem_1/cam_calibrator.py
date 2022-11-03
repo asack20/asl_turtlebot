@@ -105,10 +105,10 @@ class CameraCalibrator:
         HINT: You MAY find the function np.meshgrid() useful.
         """
         ########## Code starts here ##########
-
-
-
-
+        x = np.arange(0, self.n_corners_x*self.d_square, self.d_square)
+        y = np.arange(0, self.n_corners_y*self.d_square, self.d_square)
+        xv, yv = np.meshgrid(x, y, indexing='xy')
+        corner_coordinates = (xv, yv)
         ########## Code ends here ##########
         return corner_coordinates
 
@@ -178,9 +178,6 @@ class CameraCalibrator:
 
         (U, S, Vt) = np.linalg.svd(R_initial)
         R = U @ np.transpose(Vt)
-
-
-
         ########## Code ends here ##########
         return R, t
 
