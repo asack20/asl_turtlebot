@@ -129,14 +129,13 @@ class CameraCalibrator:
         ########## Code starts here ##########
         print("X: ", X)
         print("u: ", u_meas)
-        M_T = [X,Y,1] # this variable represents the transpose of M~
-        n = len(X)
+        M_T = [X,Y,np.ones_like(X)] # this variable represents the transpose of M~
         print("M: ", M_T)
-        L = [[M_T,np.zeros((n,3)),-np.multiply(u_meas,M_T)],[np.zeros((n,3)),M_T,-np.multiply(v_meas,M_T)]]
+        L = np.vstack([M_T,np.zeros_like(M_T),-np.multiply(u_meas,M_T)],[np.zeros_like(M_T),M_T,-np.multiply(v_meas,M_T)])
         print("L: ", L)
         u,s,vh = np.linalg.svd(L)
-
-
+        x = vh[np.argmin(s),:] # rows of vh are eigenvectors of LHL, this row corresponds to smallest eigenvalue
+        H = x.reshape((3,3))
         ########## Code ends here ##########
         return H
 
