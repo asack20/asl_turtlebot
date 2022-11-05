@@ -128,12 +128,10 @@ class CameraCalibrator:
         """
         ########## Code starts here ##########
         M_T = np.column_stack((X,Y,np.ones_like(X))) # this variable represents the transpose of M~
-        print("M: ", M_T.shape)
+
         top = np.hstack((M_T,np.zeros_like(M_T),-np.column_stack((u_meas,u_meas,u_meas))*M_T))
         bottom = np.hstack((np.zeros_like(M_T),M_T,-np.column_stack((v_meas,v_meas,v_meas))*M_T))
         L = np.vstack((top,bottom))
-        # L = np.vstack([M_T,np.zeros_like(M_T),-np.multiply(u_meas,M_T)],[np.zeros_like(M_T),M_T,-np.multiply(v_meas,M_T)])
-        print("L: ", L.shape)
         u,s,vh = np.linalg.svd(L)
         x = vh[np.argmin(s),:] # rows of vh are eigenvectors of LHL, this row corresponds to smallest eigenvalue
         H = x.reshape((3,3))
@@ -239,9 +237,11 @@ class CameraCalibrator:
 
         """
         ########## Code starts here ##########
-
-
-
+        M_tilde = np.row_stack((X,Y,Z,np.ones_like(X)))
+        R_tilde = np.hstack((R,np.expand_dims(t, axis=1)))
+        m_tilde = R_tilde @ M_tilde
+        x = m_tilde[0,:]
+        y = m_tilde[1,:]
 
         ########## Code ends here ##########
         return x, y
@@ -259,11 +259,11 @@ class CameraCalibrator:
             u, v: the coordinates in the ideal pixel image plane
         """
         ########## Code starts here ##########
-
-
-
-
-
+        M_tilde = np.row_stack((X,Y,Z,np.ones_like(X)))
+        R_tilde = np.hstack((R,np.expand_dims(t, axis=1)))
+        m_tilde = A @ R_tilde @ M_tilde
+        u = m_tilde[0,:]
+        v = m_tilde[1,:]
         ########## Code ends here ##########
         return u, v
 
