@@ -105,8 +105,8 @@ class CameraCalibrator:
         HINT: You MAY find the function np.meshgrid() useful.
         """
         ########## Code starts here ##########
-        x = np.arange(0, self.n_corners_x*self.d_square, self.d_square)
-        y = np.arange(0, self.n_corners_y*self.d_square, self.d_square)
+        x = self.d_square * np.arange(0, self.n_corners_x)
+        y = self.d_square * np.arange(0, self.n_corners_y)
         xv, yv = np.meshgrid(x, y, indexing='xy')
         corner_coordinates = ([xv.flatten()]*self.n_chessboards, [yv.flatten()]*self.n_chessboards)
         ########## Code ends here ##########
@@ -127,12 +127,13 @@ class CameraCalibrator:
         HINT: Some numpy functions that might come in handy are stack, vstack, hstack, column_stack, expand_dims, zeros_like, and ones_like.
         """
         ########## Code starts here ##########
-        print("X: ", X)
-        print("u: ", u_meas)
-        M_T = [X,Y,np.ones_like(X)] # this variable represents the transpose of M~
-        print("M: ", M_T)
-        L = np.vstack([M_T,np.zeros_like(M_T),-np.multiply(u_meas,M_T)],[np.zeros_like(M_T),M_T,-np.multiply(v_meas,M_T)])
-        print("L: ", L)
+        M_T = np.column_stack((X,Y,np.ones_like(X))) # this variable represents the transpose of M~
+        print("M: ", M_T.shape)
+        top = np.hstack((M_T,np.zeros_like(M_T),-np.column_stack((u_meas,u_meas,u_meas))*M_T))
+        bottom = np.hstack((np.zeros_like(M_T),M_T,-np.column_stack((v_meas,v_meas,v_meas))*M_T))
+        L = np.vstack((top,bottom))
+        # L = np.vstack([M_T,np.zeros_like(M_T),-np.multiply(u_meas,M_T)],[np.zeros_like(M_T),M_T,-np.multiply(v_meas,M_T)])
+        print("L: ", L.shape)
         u,s,vh = np.linalg.svd(L)
         x = vh[np.argmin(s),:] # rows of vh are eigenvectors of LHL, this row corresponds to smallest eigenvalue
         H = x.reshape((3,3))

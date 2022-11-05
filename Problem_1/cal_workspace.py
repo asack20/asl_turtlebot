@@ -28,8 +28,8 @@ def main():
 
     u_meas, v_meas = cc.getMeasuredPixImageCoord()
     X, Y = cc.genCornerCoordinates(u_meas, v_meas)
-    print(X)
-    print(Y)
+    #print(X)
+    #print(Y)
 
     H = []
     for p in range(cc.n_chessboards):
