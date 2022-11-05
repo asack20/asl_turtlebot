@@ -158,12 +158,12 @@ class CameraCalibrator:
             for i in range(2):
                 for j in range(2):
                     vij = np.zeros(6)
-                    vij[0] = H[k][i, 0] * H[k][j, 0]
-                    vij[1] = H[k][i, 0] * H[k][j, 1] + H[k][i, 1] * H[k][j, 0]
-                    vij[2] = H[k][i, 1] * H[k][j, 1]
-                    vij[3] = H[k][i, 2] * H[k][j, 0] + H[k][i, 0] * H[k][j, 2]
-                    vij[4] = H[k][i, 2] * H[k][j, 1] + H[k][i, 1] * H[k][j, 2]
-                    vij[5] = H[k][i, 2] * H[k][j, 2]
+                    vij[0] = H[k][0, i] * H[k][0, j]
+                    vij[1] = H[k][0, i] * H[k][1, j] + H[k][1, i] * H[k][0, j]
+                    vij[2] = H[k][1, i] * H[k][1, j]
+                    vij[3] = H[k][2, i] * H[k][0, j] + H[k][0, i] * H[k][2, j]
+                    vij[4] = H[k][2, i] * H[k][1, j] + H[k][1, i] * H[k][2, j]
+                    vij[5] = H[k][2, i] * H[k][2, j]
                     if i == 0:
                         if j == 0:
                             V[2 * k + 1, :] = V[2 * k + 1, :] + vij
@@ -172,8 +172,7 @@ class CameraCalibrator:
                     elif j == 1:
                         V[2 * k + 1, :] = V[2 * k + 1, :] - vij
         (U, S, Vt) = np.linalg.svd(V)
-        b = Vt[-1,:]
-        # b = np.linalg.lstsq(V, 0)
+        b = Vt[np.argmin(S), :]
         # B = np.zeros((3, 3))
         # B[0, 0] = b[0]
         # B[0, 1] = b[1]
