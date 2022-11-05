@@ -219,7 +219,7 @@ class CameraCalibrator:
         t = lam * A_inv @ H[:, 2]
 
         (U, S, Vt) = np.linalg.svd(R_initial)
-        R = U @ np.transpose(Vt)
+        R = U @ Vt
         ########## Code ends here ##########
         return R, t
 
