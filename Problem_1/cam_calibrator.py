@@ -155,44 +155,44 @@ class CameraCalibrator:
         ########## Code starts here ##########
 
         n = len(H)
-        V = np.zeros(2 * n, 6)
+        V = np.zeros((2 * n, 6))
         for k in range(n):
             for i in range(2):
                 for j in range(2):
-                    v = np.zeros(6)
-                    v[0] = H[k][i, 0] * H[k][j, 0]
-                    v[1] = H[k][i, 0] * H[k][j, 1] + H[k][i, 1] * H[k][j, 0]
-                    v[2] = H[k][i, 1] * H[k][j, 1]
-                    v[3] = H[k][i, 2] * H[k][j, 0] + H[k][i, 0] * H[k][j, 2]
-                    v[4] = H[k][i, 2] * H[k][j, 1] + H[k][i, 1] * H[k][j, 2]
-                    v[5] = H[k][i, 2] * H[k][j, 2]
+                    vij = np.zeros(6)
+                    vij[0] = H[k][i, 0] * H[k][j, 0]
+                    vij[1] = H[k][i, 0] * H[k][j, 1] + H[k][i, 1] * H[k][j, 0]
+                    vij[2] = H[k][i, 1] * H[k][j, 1]
+                    vij[3] = H[k][i, 2] * H[k][j, 0] + H[k][i, 0] * H[k][j, 2]
+                    vij[4] = H[k][i, 2] * H[k][j, 1] + H[k][i, 1] * H[k][j, 2]
+                    vij[5] = H[k][i, 2] * H[k][j, 2]
                     if i == 0:
                         if j == 0:
-                            V[2 * k + 1, :] = v
+                            V[2 * k + 1, :] = V[2 * k + 1, :] + vij
                         else:
-                            V[2 * k, :] = v
+                            V[2 * k, :] = vij
                     elif j == 1:
-                        V[2 * k + 1, :] = V[2 * k + 1, :] - v
+                        V[2 * k + 1, :] = V[2 * k + 1, :] - vij
         (U, S, Vt) = np.linalg.svd(V)
         b = Vt[-1,:]
-        #b = np.linalg.solve(V, 0)
-        #B = np.zeros(3, 3)
-        #B[0, 0] = b[0]
-        #B[0, 1] = b[1]
-        #B[1, 0] = b[1]
-        #B[1, 1] = b[2]
-        #B[0, 2] = b[3]
-        #B[2, 0] = b[3]
-        #B[1, 2] = b[4]
-        #B[2, 1] = b[4]
-        #B[2, 2] = b[5]
+        # b = np.linalg.lstsq(V, 0)
+        # B = np.zeros((3, 3))
+        # B[0, 0] = b[0]
+        # B[0, 1] = b[1]
+        # B[1, 0] = b[1]
+        # B[1, 1] = b[2]
+        # B[0, 2] = b[3]
+        # B[2, 0] = b[3]
+        # B[1, 2] = b[4]
+        # B[2, 1] = b[4]
+        # B[2, 2] = b[5]
         v_0 = (b[1] * b[3] - b[0] * b[4]) / (b[0] * b[2] - b[1] ** 2)
         lam = b[5] - (b[3] ** 2 + v_0 * (b[1] * b[3] - b[0] * b[4])) / b[0]
         alpha = np.sqrt(lam / b[0])
         beta = np.sqrt(lam * b[0] / (b[0] * b[2] - b[1] ** 2))
         gamma = -b[1] * alpha ** 2 * beta / lam
         u_0 = gamma * v_0 / beta - b[3] * alpha ** 2 / lam
-        A = np.zeros(3, 3)
+        A = np.zeros((3, 3))
         A[0, 0] = alpha
         A[0, 1] = gamma
         A[0, 2] = u_0
@@ -214,12 +214,12 @@ class CameraCalibrator:
         """
         ########## Code starts here ##########
         A_inv = np.linalg.inv(A)
-        lam = 1/(np.linalg.norm(A_inv @ H[:,0]))
-        R_initial = np.zeros(3,3)
-        R_initial[:,0] = lam * A_inv @ H[:,0]
-        R_initial[:,1] = lam * A_inv @ H[:,1]
-        R_initial[:,2] = np.cross(R_initial[:,0], R_initial[:,1])
-        t = lam * A_inv @ H[:,2]
+        lam = 1 / (np.linalg.norm(A_inv @ H[:, 0]))
+        R_initial = np.zeros((3, 3))
+        R_initial[:, 0] = lam * A_inv @ H[:, 0]
+        R_initial[:, 1] = lam * A_inv @ H[:, 1]
+        R_initial[:, 2] = np.cross(R_initial[:, 0], R_initial[:, 1])
+        t = lam * A_inv @ H[:, 2]
 
         (U, S, Vt) = np.linalg.svd(R_initial)
         R = U @ np.transpose(Vt)
