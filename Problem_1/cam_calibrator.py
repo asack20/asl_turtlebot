@@ -127,10 +127,14 @@ class CameraCalibrator:
         HINT: Some numpy functions that might come in handy are stack, vstack, hstack, column_stack, expand_dims, zeros_like, and ones_like.
         """
         ########## Code starts here ##########
-
-
-
-
+        print("X: ", X)
+        print("u: ", u_meas)
+        M_T = [X,Y,1] # this variable represents the transpose of M~
+        n = len(X)
+        print("M: ", M_T)
+        L = [[M_T,np.zeros((n,3)),-np.multiply(u_meas,M_T)],[np.zeros((n,3)),M_T,-np.multiply(v_meas,M_T)]]
+        print("L: ", L)
+        u,s,vh = np.linalg.svd(L)
 
 
         ########## Code ends here ##########
