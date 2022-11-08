@@ -106,6 +106,7 @@ class PoseControllerNode:
         ########## Code starts here ##########
         # TODO: Update the goal pose in the pose controller.
         self.controller.load_goal(msg.x, msg.y, msg.theta)
+        rospy.loginfo("CMD POSE CALLBACK: X: %s, Y: %s, Theta: %s", str(msg.x),str(msg.y), str(msg.theta))
         ########## Code ends here ##########
 
         # Record time of pose update

@@ -158,13 +158,18 @@ class Detector:
         that is a unit vector in the direction of the pixel, in the camera frame """
 
         ########## Code starts here ##########
-        # TODO: Compute x, y, z.
-        x = 0.
-        y = 0.
+        # TODO: Compute x, y, z.    
+        x = (u - self.cx) / self.fx
+        y = (v - self.cy) / self.fy
         z = 1.
+        
+        mag = np.linalg.norm([x,y,z])
+        x_norm = x/mag
+        y_norm = y/mag
+        z_norm = z/mag
         ########## Code ends here ##########
 
-        return x, y, z
+        return x_norm, y_norm, z_norm
 
     def estimate_distance(self, thetaleft, thetaright, ranges):
         """ estimates the distance of an object in between two angles
@@ -258,10 +263,10 @@ class Detector:
 
         ########## Code starts here ##########
         # TODO: Extract camera intrinsic parameters.
-        self.cx = 0.
-        self.cy = 0.
-        self.fx = 1.
-        self.fy = 1.
+        self.cx = msg.K[2]
+        self.cy = msg.K[5]
+        self.fx = msg.K[0]
+        self.fy = msg.K[4]
         ########## Code ends here ##########
 
     def laser_callback(self, msg):
