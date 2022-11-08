@@ -239,8 +239,8 @@ class CameraCalibrator:
         M_tilde = np.row_stack((X,Y,Z,np.ones_like(X)))
         R_tilde = np.hstack((R,np.expand_dims(t, axis=1)))
         m_tilde = R_tilde @ M_tilde
-        x = m_tilde[0,:]
-        y = m_tilde[1,:]
+        x = m_tilde[0,:]/m_tilde[2,:] #I don't see where this comes from. Does [u, v, 1] = A @ [x, y, 1]? 
+        y = m_tilde[1,:]/m_tilde[2,:] #Form x and y instead from r3 and t as shown in 2.4: Geometric interpretation?
 
         ########## Code ends here ##########
         return x, y
@@ -261,8 +261,9 @@ class CameraCalibrator:
         M_tilde = np.row_stack((X,Y,Z,np.ones_like(X)))
         R_tilde = np.hstack((R,np.expand_dims(t, axis=1)))
         m_tilde = A @ R_tilde @ M_tilde
-        u = m_tilde[0,:]
-        v = m_tilde[1,:]
+        #s = 0.25 --> this s value seems to scale some of the patterns to match closer but it's definitely still off..
+        u = m_tilde[0,:]/m_tilde[2,:] #Instead use 1/s*m_tilde[0,:]
+        v = m_tilde[1,:]/m_tilde[2,:] #Instead use 1/s*m_tilde[1,:]
         ########## Code ends here ##########
         return u, v
 
