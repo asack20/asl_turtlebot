@@ -20,7 +20,7 @@ class PoseController:
 
         self.V_max = V_max
         self.om_max = om_max
-        rospy.init_node('pose_controller', anonymous=True)
+        
         self.alpha_pub = rospy.Publisher('/controller/alpha', Float32, queue_size=10)
         self.delta_pub = rospy.Publisher('/controller/delta', Float32, queue_size=10)
         self.rho_pub = rospy.Publisher('/controller/rho', Float32, queue_size=10)
