@@ -15,7 +15,15 @@ def compute_Gx(xvec, u, dt):
     # HINT: Since theta is changing with time, try integrating x, y wrt d(theta) instead of dt by introducing om
     # HINT: When abs(om) < EPSILON_OMEGA, assume that the theta stays approximately constant ONLY for calculating the next x, y
     #       New theta should not be equal to theta. Jacobian with respect to om is not 0.
-        
+    Gx = np.eye(3)
+
+    if abs(u[1]) < EPSILON_OMEGA:
+        Gx[0, 2] = -u[0] * np.sin(xvec[2]) * dt
+        Gx[1, 2] = u[0] * np.cos(xvec[2]) * dt
+    else:
+        Gx[0, 2] = -(u[0] * (np.cos(xvec[2]) - np.cos(xvec[2] + u[1] * dt))) / u[1]
+        Gx[1, 2] = (u[0] * (np.sin(xvec[2] + u[1]*dt) - np.sin(xvec[2]))) / u[1]
+
     ########## Code ends here ##########
     return Gx
     
@@ -33,7 +41,14 @@ def compute_Gu(xvec, u, dt):
     # HINT: Since theta is changing with time, try integrating x, y wrt d(theta) instead of dt by introducing om
     # HINT: When abs(om) < EPSILON_OMEGA, assume that the theta stays approximately constant ONLY for calculating the next x, y
     #       New theta should not be equal to theta. Jacobian with respect to om is not 0.
-        
+    if abs(u[1]) < EPSILON_OMEGA:
+        Gu = np.array([[(np.cos(xvec[2])*dt), 0],
+                       [(np.sin(xvec[2])*dt), 0],
+                       [0, dt]])
+    else:
+        Gu = np.array([[((1/u[1]) * ((np.sin(xvec[2])*(np.cos(u[1]*dt)-1))+ np.sin(u[1]*dt)*np.cos(xvec[2]))), ((u[0]/(u[1]**2))*(-np.sin(xvec[2] + u[1]*dt) + u[1]*dt* np.cos(xvec[2] + u[1]*dt) + np.sin(xvec[2])))],
+                       [((-1/u[1]) * ((np.cos(xvec[2])*(np.cos(u[1]*dt)-1)) - np.sin(u[1]*dt)*np.sin(xvec[2]))), ((u[0]/(u[1]**2))*(u[1]*dt* np.sin(xvec[2] + u[1]*dt) + np.cos(xvec[2] + u[1]*dt) - np.cos(xvec[2])))],
+                       [0, dt]])
     ########## Code ends here ##########
     return Gu
 
@@ -58,6 +73,20 @@ def compute_dynamics(xvec, u, dt, compute_jacobians=True):
     # HINT: When abs(om) < EPSILON_OMEGA, assume that the theta stays approximately constant ONLY for calculating the next x, y
     #       New theta should not be equal to theta. Jacobian with respect to om is not 0.
 
+    Gx = compute_Gx(xvec, u, dt)
+    Gu = compute_Gu(xvec, u, dt)
+
+    if abs(u[1]) < EPSILON_OMEGA:
+        theta = xvec[2] + u[1] * dt
+        x = xvec[0] + u[0] * np.cos(xvec[2])*dt
+        y = xvec[1] + u[0] * np.sin(xvec[2])*dt
+        g = np.array([x, y, theta])
+
+    else:
+        theta = xvec[2] + u[1] * dt
+        x = xvec[0] + ((u[0]/u[1]) * (np.sin(theta)-np.sin(xvec[2])))
+        y = xvec[1] + (-(u[0] / u[1]) * (np.cos(theta) - np.cos(xvec[2])))
+        g = np.array([x, y, theta])
 
     ########## Code ends here ##########
 
