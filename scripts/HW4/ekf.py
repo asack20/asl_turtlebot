@@ -4,6 +4,7 @@ import scipy.linalg  # you may find scipy.linalg.block_diag useful
 import os
 from . import turtlebot_model as tb
 
+
 class Ekf(object):
     """
     Base class for EKF Localization and SLAM.
@@ -45,7 +46,6 @@ class Ekf(object):
         # TODO: Update self.x, self.Sigma.
         self.x = g
         self.Sigma = Gx @ self.Sigma @ Gx.T + dt * Gu @ self.R @ Gu.T
-
 
         ########## Code ends here ##########
 
@@ -90,12 +90,12 @@ class Ekf(object):
 
         S = H @ self.Sigma @ H.T + Q
         K = self.Sigma @ H.T @ np.linalg.inv(S)
-        # print("dim K: ", K.shape)
-        # print("dim x: ", self.x.shape)
-        # print("dim z: ", z.shape)
-        self.x = self.x + K @ z
-        self.Sigma = self.Sigma - K @ S @ K.T
+        #print("dim K: ", K.shape)
+        #print("dim x: ", self.x.shape)
+        #print("dim z: ", z.shape)
+        self.x = self.x + (K @ z)
 
+        self.Sigma = self.Sigma - K @ S @ K.T
 
         ########## Code ends here ##########
 
@@ -176,16 +176,13 @@ class EkfLocalization(Ekf):
         # TODO: Compute z, Q.
         # HINT: The scipy.linalg.block_diag() function may be useful.
         # HINT: A list can be unpacked using the * (splat) operator.
-
-        z = np.vstack((*v_list,))
-        z = np.reshape(z,(z.shape[0],))
+        #for i in range(len(v_list)):
+        #    v_list[i] = np.reshape(v_list[i], (2,1))
+        z = np.hstack((*v_list,)).flatten()
+        #z = np.reshape(z, (z.shape[1],1))
         Q = scipy.linalg.block_diag(*Q_list)
         H = np.vstack((*H_list,))
 
-        print("z: ", z)
-        print("dim z: ", z.shape)
-        print("dim Q: ", Q.shape)
-        print("dim H: ", H.shape)
 
         ########## Code ends here ##########
 
@@ -231,52 +228,51 @@ class EkfLocalization(Ekf):
         # HINT: hs contains the J predicted lines, z_raw contains the I observed lines
         # HINT: To calculate the innovation for alpha, use angle_diff() instead of plain subtraction
         # HINT: Optionally, efficiently calculate all the innovations in a matrix V of shape [I, J, 2]. np.expand_dims() and np.dstack() may be useful.
-        # HINT: For each of the I observed lines, 
+        # HINT: For each of the I observed lines,
         #       find the closest predicted line and the corresponding minimum Mahalanobis distance
         #       if the minimum distance satisfies the gating criteria, add corresponding entries to v_list, Q_list, H_list
 
         I = z_raw.shape[0]
         J = hs.shape[0]
-        
-        v = np.zeros((J,2))
-        S = np.zeros((J,2,2))
-        d = np.zeros((J,1))
+
+        v = np.zeros((J, 2))
+        S = np.zeros((J, 2, 2))
+        d = np.zeros((J, 1))
 
         v_list = []
         Q_list = []
         H_list = []
-        
+
         for i in range(I):
-            v = np.zeros((J,2))
-            S = np.zeros((J,2,2))
-            d = np.zeros((J,1))
+            v = np.zeros((J, 2))
+            S = np.zeros((J, 2, 2))
+            d = np.zeros((J, 1))
             for j in range(J):
-                v[j,0] = angle_diff(z_raw[i,0], hs[j,0])
-                v[j,1] = z_raw[i,1] - hs[j,1]
+                v[j, 0] = angle_diff(z_raw[i, 0], hs[j, 0])
+                v[j, 1] = z_raw[i, 1] - hs[j, 1]
                 S[j] = Hs[j] @ self.Sigma @ Hs[j].T + Q_raw[i]
-                d[j] = v[j,:].T @ np.linalg.inv(S[j]) @ v[j,:] 
+                d[j] = v[j, :].T @ np.linalg.inv(S[j]) @ v[j, :]
             j_min_ind = np.argmin(np.abs(d))
-            if (np.abs(d[j_min_ind]) < self.g**2):
-                v_add = np.zeros((2,1))
-                v_add[0,0] = v[j_min_ind,0]
-                v_add[1,0] = v[j_min_ind,1]
+            if (np.abs(d[j_min_ind]) < self.g ** 2):
+                v_add = np.zeros((1, 2))
+                v_add[0,0] = v[j_min_ind, 0]
+                v_add[0,1] = v[j_min_ind, 1]
                 v_list.append(v_add)
                 Q_list.append(Q_raw[i])
                 H_list.append(Hs[j_min_ind])
-        
+
         print("v_list: ", v_list)
 
         # for i in I
-	    #     for j in J
-		#         vij = zi - hj
-		#         Sij = Hj*Sigma*Hj^T + Qi
-	    #     	  dij = vij^T*Sij^-1*vij
-	    #     j_min_ind = argmin(dij)
-	    #     if (min(abs(dij)) < g^2):
-	    #     	append v[i,j_min_ind] to v_list
-	    #     	append Q[i,j_min_ind] to Q_list
-	    #     	append H[i,j_min_ind] to H_list
-
+        #     for j in J
+        #         vij = zi - hj
+        #         Sij = Hj*Sigma*Hj^T + Qi
+        #     	  dij = vij^T*Sij^-1*vij
+        #     j_min_ind = argmin(dij)
+        #     if (min(abs(dij)) < g^2):
+        #     	append v[i,j_min_ind] to v_list
+        #     	append Q[i,j_min_ind] to Q_list
+        #     	append H[i,j_min_ind] to H_list
 
         ########## Code ends here ##########
 
@@ -347,7 +343,6 @@ class EkfSlam(Ekf):
         # HINT: This should be very similar to EkfLocalization.transition_model() and take 1-5 lines of code.
         # HINT: Call tb.compute_dynamics() with the correct elements of self.x
 
-
         ########## Code ends here ##########
 
         return g, Gx, Gu
@@ -376,8 +371,6 @@ class EkfSlam(Ekf):
         ########## Code starts here ##########
         # TODO: Compute z, Q, H.
         # Hint: Should be identical to EkfLocalization.measurement_model().
-
-
 
         ########## Code ends here ##########
 
@@ -409,7 +402,6 @@ class EkfSlam(Ekf):
         # HINT: Should be almost identical to EkfLocalization.compute_innovations(). What is J now?
         # HINT: Instead of getting world-frame line parameters from self.map_lines, you must extract them from the state self.x.
 
-
         ########## Code ends here ##########
 
         return v_list, Q_list, H_list
@@ -423,7 +415,7 @@ class EkfSlam(Ekf):
         Hx_list = []
         for j in range(J):
             idx_j = 3 + 2 * j
-            alpha, r = self.x[idx_j : idx_j + 2]
+            alpha, r = self.x[idx_j: idx_j + 2]
 
             Hx = np.zeros((2, self.x.size))
 
@@ -437,7 +429,7 @@ class EkfSlam(Ekf):
             # First two map lines are assumed fixed so we don't want to propagate
             # any measurement correction to them.
             if j >= 2:
-                Hx[:,idx_j:idx_j+2] = np.eye(2)  # FIX ME!
+                Hx[:, idx_j:idx_j + 2] = np.eye(2)  # FIX ME!
 
             ########## Code ends here ##########
 
