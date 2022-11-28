@@ -90,9 +90,6 @@ class Ekf(object):
 
         S = H @ self.Sigma @ H.T + Q
         K = self.Sigma @ H.T @ np.linalg.inv(S)
-        #print("dim K: ", K.shape)
-        #print("dim x: ", self.x.shape)
-        #print("dim z: ", z.shape)
         self.x = self.x + (K @ z)
 
         self.Sigma = self.Sigma - K @ S @ K.T
@@ -261,18 +258,6 @@ class EkfLocalization(Ekf):
                 Q_list.append(Q_raw[i])
                 H_list.append(Hs[j_min_ind])
 
-        print("v_list: ", v_list)
-
-        # for i in I
-        #     for j in J
-        #         vij = zi - hj
-        #         Sij = Hj*Sigma*Hj^T + Qi
-        #     	  dij = vij^T*Sij^-1*vij
-        #     j_min_ind = argmin(dij)
-        #     if (min(abs(dij)) < g^2):
-        #     	append v[i,j_min_ind] to v_list
-        #     	append Q[i,j_min_ind] to Q_list
-        #     	append H[i,j_min_ind] to H_list
 
         ########## Code ends here ##########
 
