@@ -171,7 +171,6 @@ class EkfLocalization(Ekf):
                 )
             )
             return None, None, None
-
         ########## Code starts here ##########
         # TODO: Compute z, Q.
         # HINT: The scipy.linalg.block_diag() function may be useful.
@@ -369,7 +368,6 @@ class EkfSlam(Ekf):
                 )
             )
             return None, None, None
-
         ########## Code starts here ##########
         # TODO: Compute z, Q, H.
         # Hint: Should be identical to EkfLocalization.measurement_model().
@@ -461,12 +459,27 @@ class EkfSlam(Ekf):
 
             # First two map lines are assumed fixed so we don't want to propagate
             # any measurement correction to them.
-            h = [alpha, r]
-            #h, Hx_temp = tb.transform_line_to_scanner_frame([alpha,r], self.x[0:3], self.tf_base_to_camera, True)
-            #print(np.shape(Hx_temp))
-            #print(np.shape(Hx[:, idx_j:idx_j+2]))
+            x_offset = self.tf_base_to_camera[0]
+            y_offset = self.tf_base_to_camera[1]
+            th_offset = self.tf_base_to_camera[2]
+            x_cam = self.x[0] + x_offset * np.cos(self.x[2]) - y_offset * np.sin(self.x[2])
+            y_cam = self.x[1] + x_offset * np.sin(self.x[2]) + y_offset * np.cos(self.x[2])
+            th_cam = self.x[2] + th_offset
+            r_cam = np.sqrt(x_cam ** 2 + y_cam ** 2)
+            beta = np.arctan2(y_cam, x_cam)
+            gamma = alpha - beta
+            r_sub = r_cam * np.cos(gamma)
+            r_in_cam = r - r_sub
+            alpha_in_cam = alpha - th_cam
+            h = np.array([alpha_in_cam, r_in_cam])
+            H_theta = np.cos(alpha) * (x_offset * np.sin(self.x[2]) + y_offset * np.cos(self.x[2])) - np.sin(alpha) * (
+                    x_offset * np.cos(self.x[2]) - y_offset * np.sin(self.x[2]))
+
+            Hx[:,0:3] = np.array([[0, 0, -1],
+                   [-np.cos(alpha), -np.sin(alpha), H_theta]])
             if j >= 2:
                 Hx[:, idx_j:idx_j+2] = np.eye(2)  # FIX ME!
+                Hx[1,idx_j] = r_cam * np.sin(gamma)
 
             ########## Code ends here ##########
 
