@@ -59,8 +59,8 @@ class ParticleFilter(object):
         # TODO: Update self.xs.
         # Hint: Call self.transition_model().
         # Hint: You may find np.random.multivariate_normal useful.
-
-
+        us = np.random.multivariate_normal(u, self.R, self.M)
+        self.xs = self.transition_model(us, dt)
         ########## Code ends here ##########
 
     def transition_model(self, us, dt):
@@ -115,7 +115,12 @@ class ParticleFilter(object):
         #       without for loops. You may find np.linspace(), np.cumsum(), and
         #       np.searchsorted() useful. This results in a ~10x speedup.
 
+        us = np.sum(ws) * (r + np.linspace(0,self.M-1, self.M)/self.M)
 
+        wsum = np.cumsum(ws)
+        indx = np.searchsorted(wsum, us, side='left')
+        self.xs = xs[indx,:]
+        self.ws = ws[indx]
         ########## Code ends here ##########
 
     def measurement_model(self, z_raw, Q_raw):
@@ -181,7 +186,22 @@ class MonteCarloLocalization(ParticleFilter):
         #       not call tb.compute_dynamics. You need to compute the idxs
         #       where abs(om) > EPSILON_OMEGA and the other idxs, then do separate 
         #       updates for them
+        g = np.zeros((self.M,3))
 
+
+        mask = abs(us[:,1]) < EPSILON_OMEGA
+        mask2 = np.invert(mask)
+        thetas = self.xs[:,2] + us[:,1] * dt
+
+        x = self.xs[:,0] * mask + us[:,0] * np.cos(self.xs[:,2]) * mask * dt
+        y = self.xs[:,1] * mask + us[:,0] * np.sin(self.xs[:,2]) * mask * dt
+
+        x = x + self.xs[:,0] * mask2 + ((mask2 * us[:,0]) / (mask2 * us[:,1]+mask)) * (np.sin(thetas)*mask2 - np.sin((self.xs[:,2]) * mask2))
+        y = y + self.xs[:,1] * mask2 - ((mask2 * us[:,0]) / (mask2 * us[:,1]+mask)) * (np.cos(thetas)*mask2 - np.cos((self.xs[:,2]) * mask2))
+
+        g[:,0] = x
+        g[:,1] = y
+        g[:,2] = thetas
 
         ########## Code ends here ##########
 
@@ -209,8 +229,8 @@ class MonteCarloLocalization(ParticleFilter):
         #       particles. You may find scipy.stats.multivariate_normal.pdf()
         #       useful.
         # Hint: You'll need to call self.measurement_model()
-
-
+        z, Q = self.measurement_model(z_raw, Q_raw)
+        ws = scipy.stats.multivariate_normal.pdf(z, np.zeros_like(z[0,:]), Q)
         ########## Code ends here ##########
 
         self.resample(xs, ws)
@@ -234,6 +254,7 @@ class MonteCarloLocalization(ParticleFilter):
         ########## Code starts here ##########
         # TODO: Compute Q.
         # Hint: You might find scipy.linalg.block_diag() useful
+        Q = scipy.linalg.block_diag(*Q_raw)
 
 
         ########## Code ends here ##########
@@ -282,7 +303,24 @@ class MonteCarloLocalization(ParticleFilter):
         #       Overall, that's 100x!
         # Hint: For the faster solution, you might find np.expand_dims(), 
         #       np.linalg.solve(), np.meshgrid() useful.
+        hs = self.compute_predicted_measurements()
 
+        I = z_raw.shape[0]
+        J = hs.shape[1]
+        v = np.zeros((self.M, I, J, 2))
+        z_expanded0 = np.expand_dims(z_raw[:,0], axis=2)
+        z_expanded1 = np.expand_dims(z_raw[:,1], axis=2)
+        v[:, :, :, 0] = angle_diff(np.expand_dims(z_expanded0, axis=0), np.expand_dims(hs[:, :, 0], axis=1))
+        v[:,:,:,1] = np.expand_dims(z_expanded1, axis=0) - np.expand_dims(hs[:,:,1], axis=1)
+        #v[:,:,:,0] = angle_diff(np.expand_dims(z_raw[:,0], axis=(0,2)), np.expand_dims(hs[:,:,0], axis=1))
+        #v[:,:,:,1] = np.expand_dims(z_raw[:,1], axis=(0,2)) - np.expand_dims(hs[:,:,1], axis=1)
+        d = v @ np.expand_dims(np.linalg.inv(Q_raw),axis=0) @ np.transpose(v, (0, 1, 3, 2))
+        d = np.diagonal(d, axis1=2, axis2=3)
+        # d = M x I x J
+        j_min_ind = np.argmin(np.abs(d), axis=2)
+
+        j, k = np.indices(j_min_ind.shape)
+        vs = v[j,k,j_min_ind,:]
 
         ########## Code ends here ##########
 
@@ -312,9 +350,33 @@ class MonteCarloLocalization(ParticleFilter):
         #       results in a ~10x speedup.
         # Hint: For the faster solution, it does not call tb.transform_line_to_scanner_frame()
         #       or tb.normalize_line_parameters(), but reimplement these steps vectorized.
+        J = self.map_lines.shape[1]
+        hs = np.zeros((self.M, J, 2))
 
+        alpha = self.map_lines[0,:]
+        r = self.map_lines[1,:]
+        x_offset = self.tf_base_to_camera[0]
+        y_offset = self.tf_base_to_camera[1]
+        th_offset = self.tf_base_to_camera[2]
 
+        x_cam = self.xs[:,0] + x_offset * np.cos(self.xs[:,2]) - y_offset * np.sin(self.xs[:,2])
+        y_cam = self.xs[:,1] + x_offset * np.sin(self.xs[:,2]) + y_offset * np.cos(self.xs[:,2])
+        th_cam = self.xs[:,2] + th_offset
+        r_cam = np.sqrt(x_cam ** 2 + y_cam ** 2)
+        beta = np.arctan2(y_cam, x_cam)
+        gamma = alpha[:,None] - beta
+        r_sub = r_cam * np.cos(gamma)
+        r_in_cam = (r.T - r_sub.T).T
+        alpha_in_cam = alpha[:,None] - th_cam
+        hs[:,:,0] = alpha_in_cam.T
+        hs[:,:,1] = r_in_cam.T
+
+        mask = hs[:,:,1] < 0
+        hs[:,:,0] += np.pi*mask
+        hs[mask,1] *= -1
+        hs[:,:,0] = (hs[:,:,0] + np.pi) % (2*np.pi) - np.pi
         ########## Code ends here ##########
 
         return hs
+
 
