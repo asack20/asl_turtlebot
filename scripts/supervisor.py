@@ -239,7 +239,7 @@ class Supervisor:
 
         # logs the current mode
         if self.prev_mode != self.mode:
-            rospy.loginfo("Current mode: %s", self.mode)
+            rospy.loginfo("Current mode: %s\r\n", self.mode)
             self.prev_mode = self.mode
 
         ########## Code starts here ##########

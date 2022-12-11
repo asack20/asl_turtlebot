@@ -56,7 +56,7 @@
       name="turtlebot_detector" />
   </group>
   <group if="$(eval len(navigator) > 0)">
-    <node pkg="asl_turtlebot" type="$(arg navigator)" name="turtlebot_navigator" output="screen" />
+    <node pkg="asl_turtlebot" type="$(arg navigator)" name="turtlebot_navigator" output="screen" launch-prefix="gnome-terminal -- " />
   </group>
 
   <!-- ###################### conditionally launch rviz ################### -->
