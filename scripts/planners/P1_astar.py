@@ -6,9 +6,9 @@ from utils import plot_line_segments
 class AStar(object):
     """Represents a motion planning problem to be solved using A*"""
 
-    def __init__(self, statespace_lo, statespace_hi, x_init, x_goal, occupancy, resolution=1):
-        self.statespace_lo = statespace_lo         # state space lower bound (e.g., [-5, -5])
-        self.statespace_hi = statespace_hi         # state space upper bound (e.g., [5, 5])
+    def __init__(self, statespace_lo, statespace_hi, x_init, x_goal, occupancy, resolution=1)->None:
+        self.statespace_lo = np.array(statespace_lo)         # state space lower bound (e.g., [-5, -5])
+        self.statespace_hi = np.array(statespace_hi)         # state space upper bound (e.g., [5, 5])
         self.occupancy = occupancy                 # occupancy grid (a DetOccupancyGrid2D object)
         self.resolution = resolution               # resolution of the discretization of state space (cell/m)
         self.x_init = self.snap_to_grid(x_init)    # initial state
@@ -16,9 +16,8 @@ class AStar(object):
 
         self.closed_set = set()    # the set containing the states that have been visited
         self.open_set = set()      # the set containing the states that are condidate for future expension
-
-        self.est_cost_through = {}  # dictionary of the estimated cost from start to goal passing through state (often called f score)
-        self.cost_to_arrive = {}    # dictionary of the cost-to-arrive at state from start (often called g score)
+        self.est_cost_through = {}  # 2d map of the estimated cost from start to goal passing through state (often called f score)
+        self.cost_to_arrive = {}    # 2d map of the cost-to-arrive at state from start (often called g score)
         self.came_from = {}         # dictionary keeping track of each state's parent to reconstruct the path
 
         self.open_set.add(self.x_init)
@@ -39,9 +38,7 @@ class AStar(object):
               useful here
         """
         ########## Code starts here ##########
-        return (self.occupancy.is_free(x) and
-                (self.statespace_lo[0] <= x[0] <= self.statespace_hi[0]) and (
-                            self.statespace_lo[1] <= x[1] <= self.statespace_hi[1]))
+        return self.occupancy.is_free(x) and x[0] <= self.statespace_hi[0] and x[0] >= self.statespace_lo[0] and x[1] <= self.statespace_hi[1] and x[1] >= self.statespace_lo[1]
         ########## Code ends here ##########
 
     def distance(self, x1, x2):
@@ -56,7 +53,7 @@ class AStar(object):
         HINT: This should take one line. Tuples can be converted to numpy arrays using np.array().
         """
         ########## Code starts here ##########
-        return np.linalg.norm(np.array(x1) - np.array(x2))
+        return np.linalg.norm(np.array(x1)-np.array(x2))
         ########## Code ends here ##########
 
     def snap_to_grid(self, x):
@@ -81,20 +78,40 @@ class AStar(object):
         HINTS: Use self.is_free to check whether a given state is indeed free.
                Use self.snap_to_grid (see above) to ensure that the neighbors
                you compute are actually on the discrete grid, i.e., if you were
-               to compute neighbors by adding/subtracting self.resolution from x, 
-               numerical errors could creep in over the course of many additions 
-               and cause grid point equality checks to fail. To remedy this, you 
-               should make sure that every neighbor is snapped to the grid as it 
+               to compute neighbors by adding/subtracting self.resolution from x,
+               numerical errors could creep in over the course of many additions
+               and cause grid point equality checks to fail. To remedy this, you
+               should make sure that every neighbor is snapped to the grid as it
                is computed.
         """
         neighbors = []
         ########## Code starts here ##########
-        for x_change in [-self.resolution, 0, self.resolution]:
-            for y_change in [-self.resolution, 0, self.resolution]:
-                if not((x_change == 0) and (y_change == 0)):
-                    tmp_neighbor = self.snap_to_grid(np.array(x)+np.array([x_change,y_change]))
-                    if self.is_free(tmp_neighbor):
-                        neighbors.append(tmp_neighbor)
+        upper = self.snap_to_grid(np.subtract(x, (0, self.resolution)))
+        lower = self.snap_to_grid(np.add(x, (0, self.resolution)))
+        left = self.snap_to_grid(np.subtract(x, (self.resolution, 0)))
+        right = self.snap_to_grid(np.add(x, (self.resolution, 0)))
+
+        upper_left = self.snap_to_grid(np.subtract(x, (self.resolution, self.resolution)))
+        lower_left = self.snap_to_grid(np.add(x, (-self.resolution, self.resolution)))
+        upper_right = self.snap_to_grid(np.subtract(x, (-self.resolution, self.resolution)))
+        lower_right = self.snap_to_grid(np.add(x, (self.resolution, self.resolution)))
+
+        if self.is_free(upper):
+            neighbors.append(upper)
+        if self.is_free(lower):
+            neighbors.append(lower)
+        if self.is_free(left):
+            neighbors.append(left)
+        if self.is_free(right):
+            neighbors.append(right)
+        if self.is_free(upper_left):
+            neighbors.append(upper_left)
+        if self.is_free(lower_left):
+            neighbors.append(lower_left)
+        if self.is_free(upper_right):
+            neighbors.append(upper_right)
+        if self.is_free(lower_right):
+            neighbors.append(lower_right)
 
         ########## Code ends here ##########
         return neighbors
@@ -113,6 +130,7 @@ class AStar(object):
         Output:
             A list of tuples, which is a list of the states that go from start to goal
         """
+
         path = [self.x_goal]
         current = path[-1]
         while current != self.x_init:
@@ -160,31 +178,28 @@ class AStar(object):
                 set membership efficiently using the syntax "if item in set".
         """
         ########## Code starts here ##########
-        it_count = 0
-        while (len(self.open_set) > 0) and (it_count < 1000):
-            it_count += 1
-            #print(it_count, "\r\n")
-            x_curr = self.find_best_est_cost_through()
-            #print("{} vs {} \r\n ".format(x_curr, self.x_goal))
-            if self.distance(x_curr, self.x_goal) < self.resolution:
-                #print("At Goal. Reconstructing Path\r\n")
+        count = 0
+        while (len(self.open_set) > 0) and (count < 10000):
+            count += 1
+            x_current = self.find_best_est_cost_through()
+            if x_current == self.x_goal:
                 self.path = self.reconstruct_path()
                 return True
-
-            self.open_set.remove(x_curr)
-            self.closed_set.add(x_curr)
-
-            for x_neigh in self.get_neighbors(x_curr):
+            self.open_set.remove(x_current)
+            self.closed_set.add(x_current)
+            for x_neigh in self.get_neighbors(x_current):
                 if x_neigh in self.closed_set:
                     continue
-                tentative_c2a = self.cost_to_arrive[x_curr] + self.distance(x_curr, x_neigh)
+                tentative_cost_to_arrive = self.cost_to_arrive[x_current] + self.distance(x_current, x_neigh)
                 if x_neigh not in self.open_set:
                     self.open_set.add(x_neigh)
-                elif tentative_c2a > self.cost_to_arrive[x_neigh]:
+                elif tentative_cost_to_arrive > self.cost_to_arrive[x_neigh]:
                     continue
-                self.came_from[x_neigh] = x_curr
-                self.cost_to_arrive[x_neigh] = tentative_c2a
-                self.est_cost_through[x_neigh] = tentative_c2a + self.distance(x_neigh, self.x_goal)
+                self.came_from[x_neigh] = x_current
+
+
+                self.cost_to_arrive[x_neigh] = tentative_cost_to_arrive
+                self.est_cost_through[x_neigh] = tentative_cost_to_arrive+self.distance(x_neigh, self.x_goal)
         return False
         ########## Code ends here ##########
 
