@@ -15,6 +15,7 @@
   <node pkg="asl_turtlebot" type="navigator.py" name="navigator" output="screen"  />
   <node pkg="asl_turtlebot" type="marker_pub.py" name="marker_pub" output="screen" />
   <node pkg="asl_turtlebot" type="multiplexer.py" name="multiplexer" output="screen" />
+  <node pkg="asl_turtlebot" type="object_tracker.py" name="object_tracker" output="screen" />
   <node pkg="asl_turtlebot" type="detector_mobilenet.py" name="detector_mobilenet" output="screen" />
   <node pkg="turtlebot3_teleop" type="turtlebot3_teleop_key" name="teleop_key" output="screen" />
   	<param name="/multiplexer/control_mode" value="NAV"/>

@@ -163,11 +163,11 @@ class AStar(object):
         it_count = 0
         while (len(self.open_set) > 0) and (it_count < 1000):
             it_count += 1
-            print(it_count, "\r\n")
+            #print(it_count, "\r\n")
             x_curr = self.find_best_est_cost_through()
-            print("{} vs {} \r\n ".format(x_curr, self.x_goal))
+            #print("{} vs {} \r\n ".format(x_curr, self.x_goal))
             if self.distance(x_curr, self.x_goal) < self.resolution:
-                print("At Goal. Reconstructing Path\r\n")
+                #print("At Goal. Reconstructing Path\r\n")
                 self.path = self.reconstruct_path()
                 return True
 
