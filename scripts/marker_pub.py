@@ -13,7 +13,7 @@ def publisher():
     while not rospy.is_shutdown():
         marker1 = Marker()
 
-        marker1.header.frame_id = "base_footprint"
+        marker1.header.frame_id = "map"
         marker1.header.stamp = rospy.Time()
 
         # IMPORTANT: If you're creating multiple markers, 
