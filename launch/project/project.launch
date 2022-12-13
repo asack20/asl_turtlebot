@@ -2,21 +2,24 @@
   <arg name="sim" default="true"/>
 
   <include file="$(find asl_turtlebot)/launch/root.launch">
-    <arg name="world" value="project_city" />
+    <arg name="world" value="project_city5" />
     <arg name="x_pos" default="3.15"/>
     <arg name="y_pos" default="1.6"/>
     <arg name="z_pos" default="0.0"/>
     <arg name="rviz" default="project"/>
     <arg name="model" default="asl_turtlebot"/>
     <arg name="sim" default="$(arg sim)"/>
+    <arg name="navigator" default="navigator.py"/>
+    <arg name="detector" default="detector_mobilenet.py"/>
     
   </include>
 
-  <node pkg="asl_turtlebot" type="navigator.py" name="navigator" output="screen"  />
+  <!-- <node pkg="asl_turtlebot" type="navigator.py" name="navigator" output="screen"  /> -->
   <node pkg="asl_turtlebot" type="marker_pub.py" name="marker_pub" output="screen" />
+  <!-- <node pkg="asl_turtlebot" type="supervisor.py" name="supervisor" output="screen" /> -->
   <node pkg="asl_turtlebot" type="multiplexer.py" name="multiplexer" output="screen" />
   <node pkg="asl_turtlebot" type="object_tracker.py" name="object_tracker" output="screen" launch-prefix="gnome-terminal -- "/>
-  <node pkg="asl_turtlebot" type="detector_mobilenet.py" name="detector_mobilenet" output="screen" />
+  <!-- <node pkg="asl_turtlebot" type="detector_mobilenet.py" name="detector_mobilenet" output="screen" /> -->
   <node pkg="turtlebot3_teleop" type="turtlebot3_teleop_key" name="teleop_key" output="screen" />
   	<param name="/multiplexer/control_mode" value="NAV"/>
 </launch>

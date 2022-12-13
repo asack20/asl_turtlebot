@@ -10,8 +10,16 @@ from std_msgs.msg import Float32MultiArray, String
 import tf
 import numpy as np
 from visualization_msgs.msg import Marker
+from dataclasses import dataclass
 
-KNOWN_OBJECT_TAGS = ['stop_sign', 'fire_hydrant', 'chair', 'cup', 'tree']
+KNOWN_OBJECT_TAGS = ['fire_hydrant', 'chair', 'car']
+
+@dataclass
+class FoundObject:
+    name: str = "unnamed_object"
+    xpos: float = 0.0
+    ypos: float = 0.0
+    is_collected: bool = False
 
 class ObjectTracker:
 
@@ -31,7 +39,7 @@ class ObjectTracker:
         # add a marker
         self.ss_m = Marker()
 
-        self.ss_m.header.frame_id = "odom"
+        self.ss_m.header.frame_id = "map"
         self.ss_m.header.stamp = rospy.Time()
 
         # IMPORTANT: If you're creating multiple markers, 
@@ -59,19 +67,21 @@ class ObjectTracker:
         
 
         # general detector
-        rospy.Subscriber("/detector/objects", DetectedObjectList, self.object_detected_callback)
+        #rospy.Subscriber("/detector/objects", DetectedObjectList, self.object_detected_callback)
         # specific ones
         rospy.Subscriber("/detector/stop_sign", DetectedObject, self.stop_sign_callback)
-        #rospy.Subscriber("/detector/fire_hydrant", DetectedObject, self.fire_hydrant_callback)
-       # rospy.Subscriber("/detector/chair", DetectedObject, self.chair_callback)
+        rospy.Subscriber("/detector/fire_hydrant", DetectedObject, self.fire_hydrant_callback)
+        rospy.Subscriber("/detector/chair", DetectedObject, self.chair_callback)
+        rospy.Subscriber("/detector/car", DetectedObject, self.car_callback)
 
 
     ########## SUBSCRIBER CALLBACKS ##########
 
     def object_detected_callback(self, msg):
-        print("Generalized Object Found")
+        #print("Generalized Object Found")
         #print(msg)
-        rospy.loginfo("OBJ Tracker: Generalized Object Found\r\n")
+        #rospy.loginfo("OBJ Tracker: Generalized Object Found\r\n")
+        pass
 
     def stop_sign_callback(self, msg):
         new_coords = self.calc_object_coords(msg.distance, msg.thetaleft, msg.thetaright)
@@ -90,6 +100,15 @@ class ObjectTracker:
 
         self.stop_sign_marker_pub.publish(self.ss_m)
 
+    def fire_hydrant_callback(self, msg):
+        self.update_found_object(msg)
+
+    def chair_callback(self, msg):
+        self.update_found_object(msg)
+
+    def car_callback(self, msg):
+        self.update_found_object(msg)
+
         ############ Code ends here ############
 
     def calc_object_coords(self, distance, thetaleft, thetaright):
@@ -97,6 +116,15 @@ class ObjectTracker:
         x_obj = self.x + distance * np.cos(self.theta + theta2)
         y_obj = self.y + distance * np.sin(self.theta + theta2)
         return (x_obj, y_obj)
+
+    def update_found_object(self, obj_msg):
+        if obj_msg.name in self.found_objects.keys():
+            # update current position
+            pass
+        else:
+            # create new entry
+            coords = self.calc_object_coords(obj_msg.distance, obj_msg.thetaleft, obj_msg.thetaright)
+            self.found_objects[obj_msg.name] = FoundObject(name=obj_msg.name, xpos=coords[0], ypos=coords[1], is_collected=False)
 
     def loop(self):
         # try to get state information to update self.x, self.y, self.theta

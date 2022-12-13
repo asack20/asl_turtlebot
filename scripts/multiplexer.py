@@ -24,7 +24,11 @@ cmd_vel_pub = rospy.Publisher("/cmd_vel", Twist, queue_size=10)
 
 while not rospy.is_shutdown():
 	control_mode = rospy.get_param("/multiplexer/control_mode")
-	if control_mode == 'NAV':
+	if control_mode == 'STOP':
+		cmd_stop = Twist()
+		# print('Supervisor cmd:', cmd_stop)
+		cmd_vel_pub.publish(cmd_stop) 
+	elif control_mode == 'NAV':
 		cmd_vel_pub.publish(cmd_vel_nav)
 		#print(control_mode)
 	elif control_mode == 'KEY':
