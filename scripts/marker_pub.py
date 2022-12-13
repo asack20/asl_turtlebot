@@ -84,23 +84,25 @@ def publisher():
 
         marker3.pose.position.x = 0
         marker3.pose.position.y = 0
-        marker3.pose.position.z = 0
+        marker3.pose.position.z = 0.175
 
-        length = 0.025
-        hFoV = 1.3962634 # from asl_turtlebot.gazebo.xacro
-        marker3.scale.x = 2*length*np.tan(hFoV/2)
-        marker3.scale.y = 2*length*np.tan(hFoV/2)
+        length = 0.0075
+        # hFoV = 1.3962634 # from asl_turtlebot.gazebo.xacro
+        # marker3.scale.x = 2*length*np.tan(hFoV/2)
+        # marker3.scale.y = 2*length*np.tan(hFoV/2)
+        marker3.scale.x = length
+        marker3.scale.y = length
         marker3.scale.z = length
 
         marker3.pose.orientation.x = 0.0
-        marker3.pose.orientation.y = np.sin(45)
+        marker3.pose.orientation.y = 0.0
         marker3.pose.orientation.z = 0.0
-        marker3.pose.orientation.w = np.cos(45)
+        marker3.pose.orientation.w = 1
 
-        marker3.color.a = 0.5  # Don't forget to set the alpha!
-        marker3.color.r = 1.0
+        marker3.color.a = 0.3  # Don't forget to set the alpha!
+        marker3.color.r = 0.5
         marker3.color.g = 0.0
-        marker3.color.b = 0.0
+        marker3.color.b = 0.5
         
         # vis_pub.publish(marker1)
         # vis_pub.publish(marker2)

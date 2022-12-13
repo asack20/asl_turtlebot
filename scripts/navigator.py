@@ -58,8 +58,9 @@ class Navigator:
         self.occupancy_updated = False
 
         # plan parameters
-        self.plan_resolution = 0.1
+        self.plan_resolution = 0.05
         self.plan_horizon = 15
+        self.radius = 0.09
 
         # time when we started following the plan
         self.current_plan_start_time = rospy.get_rostime()
@@ -82,7 +83,7 @@ class Navigator:
         self.at_thresh_theta = 0.05
 
         # trajectory smoothing
-        self.spline_alpha = 0.05
+        self.spline_alpha = 0.1
         self.spline_deg = 3  # cubic spline
         self.traj_dt = 0.1
 
@@ -327,6 +328,7 @@ class Navigator:
             x_goal,
             self.occupancy,
             self.plan_resolution,
+            self.radius
         )
 
         rospy.loginfo("Navigator: computing navigation plan\r\n")

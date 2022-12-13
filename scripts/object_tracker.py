@@ -20,6 +20,7 @@ class FoundObject:
     xpos: float = 0.0
     ypos: float = 0.0
     is_collected: bool = False
+    marker: Marker = Marker()
 
 class ObjectTracker:
 
@@ -31,10 +32,12 @@ class ObjectTracker:
         self.theta = 0 
         self.found_objects = {}
         self.found_stop_signs = []
+        self.next_marker_id = 0
 
         self.trans_listener = tf.TransformListener()
 
         self.stop_sign_marker_pub = rospy.Publisher('/marker/stop_signs', Marker, queue_size=10)
+        self.object_marker_pub = rospy.Publisher('/marker/objects', Marker, queue_size=10)
 
         # add a marker
         self.ss_m = Marker()
@@ -48,14 +51,24 @@ class ObjectTracker:
         self.ss_m.type = Marker.SPHERE_LIST # Sphere List
         self.ss_m.action = Marker.ADD
 
-        self.ss_m.scale.x = 0.25
-        self.ss_m.scale.y = 0.25
-        self.ss_m.scale.z = 0.25
+        self.ss_m.scale.x = 0.2
+        self.ss_m.scale.y = 0.2
+        self.ss_m.scale.z = 0.2
 
         self.ss_m.color.a = 1.0 # Don't forget to set the alpha!
         self.ss_m.color.r = 1.0
         self.ss_m.color.g = 0.0
         self.ss_m.color.b = 0.0
+
+        self.ss_m.pose.position.x = 0
+        self.ss_m.pose.position.y = 0
+        self.ss_m.pose.position.z = 0
+
+        self.ss_m.pose.orientation.x = 0.0
+        self.ss_m.pose.orientation.y = 0.0
+        self.ss_m.pose.orientation.z = 0.0
+        self.ss_m.pose.orientation.w = 1
+
 
         ########## PUBLISHERS ##########
 
@@ -72,7 +85,7 @@ class ObjectTracker:
         rospy.Subscriber("/detector/stop_sign", DetectedObject, self.stop_sign_callback)
         rospy.Subscriber("/detector/fire_hydrant", DetectedObject, self.fire_hydrant_callback)
         rospy.Subscriber("/detector/chair", DetectedObject, self.chair_callback)
-        rospy.Subscriber("/detector/car", DetectedObject, self.car_callback)
+        rospy.Subscriber("/detector/person", DetectedObject, self.person_callback)
 
 
     ########## SUBSCRIBER CALLBACKS ##########
@@ -106,7 +119,7 @@ class ObjectTracker:
     def chair_callback(self, msg):
         self.update_found_object(msg)
 
-    def car_callback(self, msg):
+    def person_callback(self, msg):
         self.update_found_object(msg)
 
         ############ Code ends here ############
@@ -124,7 +137,39 @@ class ObjectTracker:
         else:
             # create new entry
             coords = self.calc_object_coords(obj_msg.distance, obj_msg.thetaleft, obj_msg.thetaright)
-            self.found_objects[obj_msg.name] = FoundObject(name=obj_msg.name, xpos=coords[0], ypos=coords[1], is_collected=False)
+            # create marker
+            m = Marker()
+            m.header.frame_id = "map"
+            m.header.stamp = rospy.Time()
+
+            # IMPORTANT: If you're creating multiple markers, 
+            #            each need to have a separate marker ID.
+            m.id = self.next_marker_id
+            self.next_marker_id += 1
+            m.type = Marker.SPHERE # Sphere List
+            m.action = Marker.ADD
+
+            m.pose.position.x = coords[0]
+            m.pose.position.y = coords[1]
+            m.pose.position.z = 0
+
+            m.pose.orientation.x = 0.0
+            m.pose.orientation.y = 0.0
+            m.pose.orientation.z = 0.0
+            m.pose.orientation.w = 1
+
+            m.scale.x = 0.2
+            m.scale.y = 0.2
+            m.scale.z = 0.2
+
+            m.color.a = 1.0 # Don't forget to set the alpha!
+            m.color.r = 1.0
+            m.color.g = 1.0
+            m.color.b = 0.0
+
+            self.found_objects[obj_msg.name] = FoundObject(name=obj_msg.name, xpos=coords[0], ypos=coords[1], is_collected=False, marker=m)
+            self.object_marker_pub.publish(self.found_objects[obj_msg.name].marker)
+
 
     def loop(self):
         # try to get state information to update self.x, self.y, self.theta
