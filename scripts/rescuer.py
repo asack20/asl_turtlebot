@@ -7,7 +7,7 @@ import numpy as np
 # from nav_msgs.msg import OccupancyGrid, MapMetaData, Path
 from geometry_msgs.msg import Twist, Pose2D, PoseStamped
 from std_msgs.msg import String, Int16
-import numpy as np
+# import numpy as np
 import tf
 from numpy import linalg
 from enum import Enum, IntEnum
@@ -17,6 +17,7 @@ class Mode(Enum):
     """State machine modes. Feel free to change."""
     EXPLORE = 0
     RESCUE = 1
+    WAIT = 2
 
 class NavMode(IntEnum):
     IDLE = 0
@@ -29,36 +30,36 @@ class Rescuer:
     def __init__(self):
         # Initialize ROS node
         rospy.init_node('turtlebot_rescuer', anonymous=True)
-        cmd_nav_pub = rospy.Publisher('/cmd_nav', Pose2D, queue_size=10)
-        obj_collected_pub = rospy.Publisher('/rescuer/obj_collected_name', String, queue_size=10)
-        task_completed_pub = rospy.Publisher('/rescuer/task_completed', String, queue_size=10)
-        nav_mode_sub = rospy.Subscriber('/navigator/mode', Int16, self.nav_mode_callback) 
-        next_obj_sub = rospy.Subscriber('/tracker/next_obj', FoundObject, self.next_obj_callback)
+        self.cmd_nav_pub = rospy.Publisher('/cmd_nav', Pose2D, queue_size=10)
+        self.obj_collected_pub = rospy.Publisher('/rescuer/obj_collected_name', String, queue_size=10)
+        self.task_completed_pub = rospy.Publisher('/rescuer/task_completed', String, queue_size=10)
+        self.nav_mode_sub = rospy.Subscriber('/navigator/mode', Int16, self.nav_mode_callback) 
+        self.next_obj_sub = rospy.Subscriber('/tracker/next_obj', FoundObject, self.next_obj_callback)
         # self.params = SupervisorParams(verbose=True)
 
-        task_completed_pub.publish('False')
+        self.task_complete = 'False'
 
-        phase = rospy.get_param("/project_phase", 'EXPLORE')
+        self.phase = rospy.set_param("/project_phase", 'EXPLORE')
 
         self.mode = Mode.EXPLORE
         self.prev_mode = None  # For printing purposes
 
         self.trans_listener = tf.TransformListener()
 
-        rescue_started = False
+        self.rescue_started = False
 
     def next_obj_callback(self, msg):
-        rob_obj_loc = msg.robot_pose
-        obj_name = msg.name
+        self.rob_obj_loc = msg.robot_pose
+        self.obj_name = msg.name
     
     def nav_mode_callback(self, msg):
-        nav_mode = msg
+        self.nav_mode = msg
 
     def close_to_obj(self):
         dist_eps = 1.0
-        dist = linalg.norm(np.as_array([self.x, self.y]), np.as_array([rob_obj_loc.x, rob_obj_loc.y]))
+        dist = linalg.norm(np.asarray([self.x, self.y]), np.asarray([self.rob_obj_loc.x, self.rob_obj_loc.y]))
         return self.mode == Mode.RESCUE and \
-               nav_mode == NavMode.IDLE and dist < dist_eps
+               self.nav_mode == NavMode.IDLE and dist < dist_eps
     
     def init_wait(self):
         """ initiates waiting at rescued object """
@@ -66,7 +67,7 @@ class Rescuer:
         self.wait_start = rospy.get_rostime()
         self.mode = Mode.WAIT
 
-    def has_stopped(self):
+    def has_waited(self):
         """ checks if rescue maneuver is over """
         
         wait_time = 3.0
@@ -88,8 +89,8 @@ class Rescuer:
                 )
             self.x = translation[0]
             self.y = translation[1]
-            euler = tf.transformations.euler_from_quaternion(rotation)
-            self.theta = euler[2]
+            # euler = tf.transformations.euler_from_quaternion(rotation)
+            # self.theta = euler[2]
         except (
             tf.LookupException,
             tf.ConnectivityException,
@@ -99,33 +100,44 @@ class Rescuer:
             print(e)
             pass
 
-        phase = rospy.get_param("/project_phase", "EXPLORE")
+        # Handle first switch to RESCUE mode when /project_phase is swapped
+        phase = rospy.get_param("/project_phase")
         if phase == 'EXPLORE':
             pass
-        elif phase == 'RESCUE' and rescue_started == False:
-            self.mode = Mode.RESCUE
-            rescue_started = True
+        elif phase == 'RESCUE':
+            if self.rescue_started == False:
+                self.mode = Mode.RESCUE
+                self.rescue_started = True
+            else:
+                pass
         else:
             print('No phase param set')
 
         # logs the current mode
         if self.prev_mode != self.mode:
-            rospy.loginfo("Current phase: %s\r\n", self.mode)
+            rospy.loginfo("Current project phase: %s\r\n", self.mode)
             self.prev_mode = self.mode
 
 
         if self.mode == Mode.EXPLORE:
             pass
         elif self.mode == Mode.RESCUE:
-            cmd_nav_pub.publish(obj_loc)
+            self.cmd_nav_pub.publish(self.rob_obj_loc)
             if self.close_to_obj():
                 self.init_wait()
-                if self.has_waited():
-                    obj_collected_pub.publish(obj_name)
-                    if obj_name == 'Home':
-                        task_completed_pub.publish('True')
-                    else:
-                        self.mode = Mode.RESCUE
+        elif self.mode == Mode.WAIT:
+            # Wait (already does it? if not, maybe set control_mode to STOP)
+            if self.has_waited():
+                self.obj_collected_pub.publish(self.obj_name)
+                if self.obj_name == 'Home':
+                    self.task_complete = 'True'
+                else:
+                    self.mode = Mode.RESCUE
+        else:
+            print('No rescuer mode set')
+
+        self.task_completed_pub.publish(self.task_complete)
+
 
     def run(self):
         rate = rospy.Rate(10) # 10 Hz
