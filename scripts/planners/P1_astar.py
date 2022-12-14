@@ -6,7 +6,7 @@ from utils import plot_line_segments
 class AStar(object):
     """Represents a motion planning problem to be solved using A*"""
 
-    def __init__(self, statespace_lo, statespace_hi, x_init, x_goal, occupancy, resolution=1)->None:
+    def __init__(self, statespace_lo, statespace_hi, x_init, x_goal, occupancy, resolution=0.0, radius=0.09)->None:
         self.statespace_lo = np.array(statespace_lo)         # state space lower bound (e.g., [-5, -5])
         self.statespace_hi = np.array(statespace_hi)         # state space upper bound (e.g., [5, 5])
         self.occupancy = occupancy                 # occupancy grid (a DetOccupancyGrid2D object)
@@ -25,6 +25,7 @@ class AStar(object):
         self.est_cost_through[self.x_init] = self.distance(self.x_init,self.x_goal)
 
         self.path = None        # the final path as a list of states
+        self.radius = radius
 
     def is_free(self, x):
         """
@@ -38,7 +39,11 @@ class AStar(object):
               useful here
         """
         ########## Code starts here ##########
-        return self.occupancy.is_free(x) and x[0] <= self.statespace_hi[0] and x[0] >= self.statespace_lo[0] and x[1] <= self.statespace_hi[1] and x[1] >= self.statespace_lo[1]
+        pos_x = x[0]
+        pos_y = x[1]
+        return self.occupancy.is_free(x) and x[0] + self.radius <= self.statespace_hi[0] and x[0] - self.radius >= self.statespace_lo[0] and x[1] + self.radius <= self.statespace_hi[1] and x[1] - self.radius >= self.statespace_lo[1]
+
+        #return self.occupancy.is_free(x) and self.occupancy.is_free((pos_x-self.radius, pos_y-self.radius)) and self.occupancy.is_free((pos_x+self.radius, pos_y-self.radius)) and self.occupancy.is_free((pos_x-self.radius, pos_y+self.radius)) and self.occupancy.is_free((pos_x+self.radius, pos_y+self.radius)) and x[0] + self.radius <= self.statespace_hi[0] and x[0] - self.radius >= self.statespace_lo[0] and x[1] + self.radius <= self.statespace_hi[1] and x[1] - self.radius >= self.statespace_lo[1]
         ########## Code ends here ##########
 
     def distance(self, x1, x2):
@@ -208,18 +213,19 @@ class DetOccupancyGrid2D(object):
     A 2D state space grid with a set of rectangular obstacles. The grid is
     fully deterministic
     """
-    def __init__(self, width, height, obstacles):
+    def __init__(self, width, height, obstacles, radius=0.09):
         self.width = width
         self.height = height
         self.obstacles = obstacles
+        self.radius = radius
 
     def is_free(self, x):
         """Verifies that point is not inside any obstacles"""
         for obs in self.obstacles:
-            inside = True
+            inside = False
             for dim in range(len(x)):
-                if x[dim] < obs[0][dim] or x[dim] > obs[1][dim]:
-                    inside = False
+                if x[dim] + self.radius > obs[0][dim] and x[dim] - self.radius < obs[1][dim]:
+                    inside = True
                     break
             if inside:
                 return False

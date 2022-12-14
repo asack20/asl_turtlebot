@@ -8,6 +8,8 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  visualization_msgs
+  geometry_msgs
   message_generation
 	dynamic_reconfigure
 )
@@ -50,6 +52,7 @@ add_message_files(
  FILES
  DetectedObject.msg
  DetectedObjectList.msg
+ FoundObject.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -70,6 +73,8 @@ add_message_files(
 generate_messages(
  DEPENDENCIES
  std_msgs
+ visualization_msgs
+ geometry_msgs
 )
 
 ################################################

@@ -3,7 +3,7 @@
 import rospy
 from nav_msgs.msg import OccupancyGrid, MapMetaData, Path
 from geometry_msgs.msg import Twist, Pose2D, PoseStamped
-from std_msgs.msg import String
+from std_msgs.msg import String, Int16
 import tf
 import numpy as np
 from numpy import linalg
@@ -13,13 +13,13 @@ from planners import AStar, compute_smoothed_traj
 import scipy.interpolate
 import matplotlib.pyplot as plt
 from controllers import PoseController, TrajectoryTracker, HeadingController
-from enum import Enum
+from enum import Enum, IntEnum
 
 from dynamic_reconfigure.server import Server
 from asl_turtlebot.cfg import NavigatorConfig
 
 # state machine modes, not all implemented
-class Mode(Enum):
+class Mode(IntEnum):
     IDLE = 0
     ALIGN = 1
     TRACK = 2
@@ -58,9 +58,9 @@ class Navigator:
         self.occupancy_updated = False
 
         # plan parameters
-        self.plan_resolution = 0.05
         self.plan_horizon = 15
         self.radius = 0.09
+        self.plan_resolution = self.radius/2
 
         # time when we started following the plan
         self.current_plan_start_time = rospy.get_rostime()
@@ -83,7 +83,7 @@ class Navigator:
         self.at_thresh_theta = 0.05
 
         # trajectory smoothing
-        self.spline_alpha = 0.1
+        self.spline_alpha = 0.15
         self.spline_deg = 3  # cubic spline
         self.traj_dt = 0.1
 
@@ -114,6 +114,8 @@ class Navigator:
             "/cmd_smoothed_path_rejected", Path, queue_size=10
         )
         self.nav_vel_pub = rospy.Publisher("/navigator/cmd_vel", Twist, queue_size=10)
+
+        self.nav_mode_pub = rospy.Publisher("/navigator/mode", Int16, queue_size=10)
 
         self.trans_listener = tf.TransformListener()
 
@@ -177,6 +179,7 @@ class Navigator:
                 self.map_origin[1],
                 7,
                 self.map_probs,
+                radius=self.radius
             )
             if self.x_g is not None:
                 # if we have a goal to plan to, replan
@@ -445,6 +448,7 @@ class Navigator:
                     self.switch_mode(Mode.IDLE)
 
             self.publish_control()
+            self.nav_mode_pub.publish(self.mode)
             rate.sleep()
 
 

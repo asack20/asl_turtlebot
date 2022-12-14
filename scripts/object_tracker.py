@@ -3,41 +3,32 @@
 from enum import Enum
 
 import rospy
-from asl_turtlebot.msg import DetectedObject, DetectedObjectList
+from asl_turtlebot.msg import DetectedObject, DetectedObjectList, FoundObject
 from gazebo_msgs.msg import ModelStates
 from geometry_msgs.msg import Twist, PoseArray, Pose2D, PoseStamped, Point
 from std_msgs.msg import Float32MultiArray, String
 import tf
 import numpy as np
 from visualization_msgs.msg import Marker
-from dataclasses import dataclass
 
-KNOWN_OBJECT_TAGS = ['fire_hydrant', 'chair', 'car']
-
-@dataclass
-class FoundObject:
-    name: str = "unnamed_object"
-    xpos: float = 0.0
-    ypos: float = 0.0
-    is_collected: bool = False
-    marker: Marker = Marker()
+KNOWN_OBJECT_TAGS = ['fire_hydrant', 'chair', 'car', 'person']
 
 class ObjectTracker:
 
     def __init__(self):
         # Initialize ROS node
         rospy.init_node('object_tracker', anonymous=True)
-        self.x = 0
-        self.y = 0
-        self.theta = 0 
+        self.pose = Pose2D()
         self.found_objects = {}
         self.found_stop_signs = []
         self.next_marker_id = 0
+        self.project_phase = rospy.get_param("/project_phase", "EXPLORE")
 
         self.trans_listener = tf.TransformListener()
 
         self.stop_sign_marker_pub = rospy.Publisher('/marker/stop_signs', Marker, queue_size=10)
         self.object_marker_pub = rospy.Publisher('/marker/objects', Marker, queue_size=10)
+        self.object_rescue_pub = rospy.Publisher('/tracker/next_obj', FoundObject, queue_size=10)
 
         # add a marker
         self.ss_m = Marker()
@@ -126,17 +117,26 @@ class ObjectTracker:
 
     def calc_object_coords(self, distance, thetaleft, thetaright):
         theta2 = (thetaleft + thetaright) / 2
-        x_obj = self.x + distance * np.cos(self.theta + theta2)
-        y_obj = self.y + distance * np.sin(self.theta + theta2)
+        x_obj = self.pose.x + distance * np.cos(self.pose.theta + theta2)
+        y_obj = self.pose.y + distance * np.sin(self.pose.theta + theta2)
         return (x_obj, y_obj)
 
     def update_found_object(self, obj_msg):
+        coords = self.calc_object_coords(obj_msg.distance, obj_msg.thetaleft, obj_msg.thetaright)
         if obj_msg.name in self.found_objects.keys():
             # update current position
-            pass
-        else:
-            # create new entry
-            coords = self.calc_object_coords(obj_msg.distance, obj_msg.thetaleft, obj_msg.thetaright)
+            self.found_objects[obj_msg.name].xpos = coords[0]
+            self.found_objects[obj_msg.name].ypos = coords[1]
+            self.found_objects[obj_msg.name].marker.pose.position.x = coords[0]
+            self.found_objects[obj_msg.name].marker.pose.position.y = coords[1]
+
+            #update robot pose if closer
+            if obj_msg.distance < self.found_objects[obj_msg.name].distance:
+                self.found_objects[obj_msg.name].distance = obj_msg.distance
+                self.found_objects[obj_msg.name].robot_pose = self.pose
+
+        else: # create new entry
+            rospy.loginfo("New {} Found at x: {}\ty: {}\r\n".format(obj_msg.name, coords[0], coords[1]))
             # create marker
             m = Marker()
             m.header.frame_id = "map"
@@ -167,20 +167,34 @@ class ObjectTracker:
             m.color.g = 1.0
             m.color.b = 0.0
 
-            self.found_objects[obj_msg.name] = FoundObject(name=obj_msg.name, xpos=coords[0], ypos=coords[1], is_collected=False, marker=m)
-            self.object_marker_pub.publish(self.found_objects[obj_msg.name].marker)
+            self.found_objects[obj_msg.name] = FoundObject(name=obj_msg.name, xpos=coords[0], ypos=coords[1], is_collected=False, marker=m, robot_pose=self.pose, distance=obj_msg.distance)
+            
+        self.object_marker_pub.publish(self.found_objects[obj_msg.name].marker)
 
+    def collect_object(self, name):
+        if name in self.found_objects.keys():
+            self.found_objects[name].is_collected = True
+            self.found_objects[name].marker.color.r = 0.0 # make yellow
+            self.object_marker_pub.publish(self.found_objects[name].marker)
+            rospy.loginfo("Obj Tracker COLLECTED {}\r\n", name)
+        else:
+            rospy.loginfo("Obj Tracker tried to collect {}, which does not exist\r\n", name)
 
     def loop(self):
         # try to get state information to update self.x, self.y, self.theta
+        f = FoundObject()
+        p = Pose2D(0.3, 0.3, 0)
+        f.robot_pose = p
+        f.name = "TEST"
+        self.object_rescue_pub.publish(f)
         try:
             (translation, rotation) = self.trans_listener.lookupTransform(
                 "/map", "/base_footprint", rospy.Time(0)
             )
-            self.x = translation[0]
-            self.y = translation[1]
+            self.pose.x = translation[0]
+            self.pose.y = translation[1]
             euler = tf.transformations.euler_from_quaternion(rotation)
-            self.theta = euler[2]
+            self.pose.theta = euler[2]
         except (
             tf.LookupException,
             tf.ConnectivityException,
@@ -189,6 +203,8 @@ class ObjectTracker:
             rospy.loginfo("Obj Tracker: waiting for state info\r\n")
             print(e)
             pass
+
+
 
 
     def run(self):

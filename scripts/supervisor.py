@@ -37,7 +37,7 @@ class SupervisorParams:
         # self.theta_eps = rospy.get_param("~theta_eps", 0.3)
 
         # Time to stop at a stop sign
-        self.stop_time = rospy.get_param("~stop_time", 5.)
+        self.stop_time = rospy.get_param("~stop_time", 3.)
 
         # Minimum distance from a stop sign to obey it
         self.stop_min_dist = rospy.get_param("~stop_min_dist", 0.5) # was formerly 0.3m
@@ -254,11 +254,11 @@ class Supervisor:
             pass
         elif self.mode == Mode.STOP:
             self.set_control_mode('STOP')
-            if self.has_stopped:
+            if self.has_stopped():
                 self.init_crossing()
         elif self.mode == Mode.CROSS:
             self.set_control_mode('NAV')
-            if self.has_crossed:
+            if self.has_crossed():
                 self.mode = Mode.NAV
 
 

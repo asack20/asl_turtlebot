@@ -62,8 +62,11 @@ class TrajectoryTracker:
         x_d, xd_d, xdd_d, y_d, yd_d, ydd_d = self.get_desired_state(t)
 
         ########## Code starts here ##########
-        if self.V_prev < V_PREV_THRES:
-            self.V_prev = np.sqrt(xd_d**2 + yd_d**2)
+        if np.abs(self.V_prev) < V_PREV_THRES:
+            if self.V_prev >= 0:
+                self.V_prev = V_PREV_THRES
+            else:
+                self.V_prev = -V_PREV_THRES
 
         x_dot = self.V_prev * np.cos(th)
         y_dot = self.V_prev * np.sin(th)
