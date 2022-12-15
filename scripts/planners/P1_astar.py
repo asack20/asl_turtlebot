@@ -26,6 +26,7 @@ class AStar(object):
 
         self.path = None        # the final path as a list of states
         self.radius = radius
+        self.thresh = 0.25
 
     def is_free(self, x):
         """
@@ -41,7 +42,7 @@ class AStar(object):
         ########## Code starts here ##########
         pos_x = x[0]
         pos_y = x[1]
-        return self.occupancy.is_free(x) and x[0] + self.radius <= self.statespace_hi[0] and x[0] - self.radius >= self.statespace_lo[0] and x[1] + self.radius <= self.statespace_hi[1] and x[1] - self.radius >= self.statespace_lo[1]
+        return self.occupancy.is_free(x, self.thresh) and x[0] + self.radius <= self.statespace_hi[0] and x[0] - self.radius >= self.statespace_lo[0] and x[1] + self.radius <= self.statespace_hi[1] and x[1] - self.radius >= self.statespace_lo[1]
 
         #return self.occupancy.is_free(x) and self.occupancy.is_free((pos_x-self.radius, pos_y-self.radius)) and self.occupancy.is_free((pos_x+self.radius, pos_y-self.radius)) and self.occupancy.is_free((pos_x-self.radius, pos_y+self.radius)) and self.occupancy.is_free((pos_x+self.radius, pos_y+self.radius)) and x[0] + self.radius <= self.statespace_hi[0] and x[0] - self.radius >= self.statespace_lo[0] and x[1] + self.radius <= self.statespace_hi[1] and x[1] - self.radius >= self.statespace_lo[1]
         ########## Code ends here ##########
@@ -184,8 +185,11 @@ class AStar(object):
         """
         ########## Code starts here ##########
         count = 0
-        while (len(self.open_set) > 0) and (count < 10000):
+        self.thresh = 0.2
+        while (len(self.open_set) > 0) and (count < 30000):
             count += 1
+            if self.thresh < 0.8:
+                self.thresh += 0.0001
             x_current = self.find_best_est_cost_through()
             if x_current == self.x_goal:
                 self.path = self.reconstruct_path()

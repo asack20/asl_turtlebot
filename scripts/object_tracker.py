@@ -10,8 +10,10 @@ from std_msgs.msg import Float32MultiArray, String
 import tf
 import numpy as np
 from visualization_msgs.msg import Marker
+from utils import wrapToPi
+from copy import deepcopy
 
-KNOWN_OBJECT_TAGS = ['fire_hydrant', 'chair', 'car', 'person', 'cow']
+KNOWN_OBJECT_TAGS = ['fire_hydrant', 'chair', 'person', 'cow', 'bicycle', 'banana']
 
 class ObjectTracker:
 
@@ -21,6 +23,7 @@ class ObjectTracker:
         self.pose = Pose2D()
         self.found_objects = {}
         self.found_stop_signs = []
+        self.rescue_list = []
         self.next_marker_id = 0
         self.project_phase = rospy.get_param("/project_phase", "EXPLORE")
 
@@ -67,7 +70,7 @@ class ObjectTracker:
         self.object_marker_pub = rospy.Publisher('/marker/objects', Marker, queue_size=10)
         self.object_rescue_pub = rospy.Publisher('/tracker/next_obj', FoundObject, queue_size=10)
         self.found_objects_pub = rospy.Publisher('/tracker/found_objects', String, queue_size=10)
-
+        self.emote_pub = rospy.Publisher('/emotes', String, queue_size=10)
 
         ########## SUBSCRIBERS ##########
         
@@ -79,8 +82,13 @@ class ObjectTracker:
         rospy.Subscriber("/detector/fire_hydrant", DetectedObject, self.fire_hydrant_callback)
         rospy.Subscriber("/detector/chair", DetectedObject, self.chair_callback)
         rospy.Subscriber("/detector/person", DetectedObject, self.person_callback)
+        rospy.Subscriber("/detector/bicycle", DetectedObject, self.bicycle_callback)
+        rospy.Subscriber("/detector/banana", DetectedObject, self.banana_callback)
+        rospy.Subscriber("/detector/cow", DetectedObject, self.cow_callback)
 
         rospy.Subscriber("/rescuer/obj_collected_name", String, self.collect_object_callback)
+
+        rospy.Subscriber('/rescue_list', String, self.rescue_list_callback)
 
 
     ########## SUBSCRIBER CALLBACKS ##########
@@ -109,18 +117,39 @@ class ObjectTracker:
         self.stop_sign_marker_pub.publish(self.ss_m)
 
     def fire_hydrant_callback(self, msg):
+        self.emote_pub.publish("Splash")
         self.update_found_object(msg)
 
     def chair_callback(self, msg):
+        self.emote_pub.publish("Take a seat")
         self.update_found_object(msg)
 
     def person_callback(self, msg):
+        self.emote_pub.publish("Doh!")
         self.update_found_object(msg)
+    
+    def bicycle_callback(self, msg):
+        self.emote_pub.publish("On your left")
+        self.update_found_object(msg)
+    
+    def banana_callback(self, msg):
+        self.emote_pub.publish("Watch your step")
+        self.update_found_object(msg)
+    
+    def cow_callback(self, msg):
+        self.emote_pub.publish("Moooooo")
+        self.update_found_object(msg)
+
+    def rescue_list_callback(self, msg):
+        name = msg.data
+        if name in self.found_objects.keys():
+            self.rescue_list.append(name)
+            print(self.rescue_list)
 
         ############ Code ends here ############
 
     def calc_object_coords(self, distance, thetaleft, thetaright):
-        theta2 = (thetaleft + thetaright) / 2
+        theta2 = (wrapToPi(thetaleft) + wrapToPi(thetaright)) / 2
         x_obj = self.pose.x + distance * np.cos(self.pose.theta + theta2)
         y_obj = self.pose.y + distance * np.sin(self.pose.theta + theta2)
         return (x_obj, y_obj)
@@ -138,7 +167,7 @@ class ObjectTracker:
                 #update robot pose if closer
                 if obj_msg.distance < self.found_objects[obj_msg.name].distance:
                     self.found_objects[obj_msg.name].distance = obj_msg.distance
-                    self.found_objects[obj_msg.name].robot_pose = self.pose
+                    self.found_objects[obj_msg.name].robot_pose = deepcopy(self.pose)
 
             else: # create new entry
                 rospy.loginfo("New {} Found at x: {}\ty: {}\r\n".format(obj_msg.name, coords[0], coords[1]))
@@ -173,29 +202,31 @@ class ObjectTracker:
                 m.color.g = 1.0
                 m.color.b = 0.0
 
-                self.found_objects[obj_msg.name] = FoundObject(name=obj_msg.name, xpos=coords[0], ypos=coords[1], is_collected=False, marker=m, robot_pose=self.pose, distance=obj_msg.distance)
+                self.found_objects[obj_msg.name] = FoundObject(name=obj_msg.name, xpos=coords[0], ypos=coords[1], is_collected=False, marker=m, robot_pose=deepcopy(self.pose), distance=obj_msg.distance)
                 
             self.object_marker_pub.publish(self.found_objects[obj_msg.name].marker)
 
-    def collect_object_callback(self, name):
+    def collect_object_callback(self, msg):
+        name = msg.data
         if self.project_phase == "RESCUE":
             if name in self.found_objects.keys():
+                rospy.loginfo("Obj Tracker COLLECTED %s\r\n", name)
                 self.found_objects[name].is_collected = True
                 self.found_objects[name].marker.color.r = 0.0 # make green
                 self.object_marker_pub.publish(self.found_objects[name].marker)
-                rospy.loginfo("Obj Tracker COLLECTED {}\r\n", name)
-
+                
                 # remove from dictionary 
                 self.found_objects.pop(name)
                 self.publish_next_object()
             else:
-                rospy.loginfo("Obj Tracker tried to collect {}, which does not exist\r\n", name)
+                rospy.loginfo("Obj Tracker tried to collect %s, which does not exist\r\n", name)
         else:
             rospy.loginfo("Error: Object Tracker cannot collect object when not in RESCUE phase. Tried to collect {}\r\n", name)
 
     def publish_next_object(self):
         if self.project_phase == "RESCUE":
-            if len(self.found_objects.keys()) > 0:
+            print(list(self.found_objects.keys()))
+            if len(list(self.found_objects.keys())) > 0:
                 to_pub = self.found_objects[list(self.found_objects.keys())[0]]
             else:
                 to_pub = self.home_found_object
@@ -211,9 +242,14 @@ class ObjectTracker:
         self.project_phase = rospy.get_param("/project_phase", "EXPLORE")
         if (last_phase == 'EXPLORE') and (self.project_phase == 'RESCUE'):
             rospy.loginfo("Entering RESCUE from EXPLORE\r\n")
-            rospy.loginfo("Avaliable Objects are: \r\n")
+            # for key in self.found_objects.keys():
+            #     print(key)
+            #     if key not in self.rescue_list:
+            #         self.found_objects.pop(key)
+            #         #rospy.loginfo("Not collecting %s\r\n", key)
+            rospy.loginfo("Will collect the following: \r\n")
             for key in self.found_objects.keys():
-                rospy.loginfo("\t{}\r\n", key)
+                rospy.loginfo("\t%s\r\n", key)
             self.publish_next_object()
         try:
             (translation, rotation) = self.trans_listener.lookupTransform(

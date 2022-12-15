@@ -60,7 +60,7 @@ class Navigator:
         # plan parameters
         self.plan_horizon = 15
         self.radius = 0.09
-        self.plan_resolution = self.radius/2
+        self.plan_resolution = self.radius
 
         # time when we started following the plan
         self.current_plan_start_time = rospy.get_rostime()
@@ -68,8 +68,8 @@ class Navigator:
         self.plan_start = [0.0, 0.0]
 
         # Robot limits
-        self.v_max = 0.2  # maximum velocity
-        self.om_max = 0.4  # maximum angular velocity
+        self.v_max = 0.4  # maximum velocity
+        self.om_max = 0.8  # maximum angular velocity
 
         self.v_des = 0.12  # desired cruising velocity
         self.theta_start_thresh = 0.05  # threshold in theta to start moving forward when path-following
@@ -94,13 +94,13 @@ class Navigator:
         self.kdy = 1.5
 
         # heading controller parameters
-        self.kp_th = 2.0
+        self.kp_th = 4.0
 
         self.traj_controller = TrajectoryTracker(
             self.kpx, self.kpy, self.kdx, self.kdy, self.v_max, self.om_max
         )
         self.pose_controller = PoseController(
-            0.0, 0.0, 0.0, self.v_max, self.om_max
+            0.4, 0.8, 0.4, self.v_max, self.om_max
         )
         self.heading_controller = HeadingController(self.kp_th, self.om_max)
 
@@ -120,6 +120,8 @@ class Navigator:
         self.trans_listener = tf.TransformListener()
 
         self.cfg_srv = Server(NavigatorConfig, self.dyn_cfg_callback)
+
+        self.farFromPath = False
 
         rospy.Subscriber("/map", OccupancyGrid, self.map_callback)
         rospy.Subscriber("/map_metadata", MapMetaData, self.map_md_callback)
@@ -145,6 +147,10 @@ class Navigator:
             or data.y != self.y_g
             or data.theta != self.theta_g
         ):
+            cmd_vel = Twist()
+            cmd_vel.linear.x = 0.0
+            cmd_vel.angular.z = 0.0
+            self.nav_vel_pub.publish(cmd_vel)
             rospy.loginfo(f"New command nav received:\r\n{data}")
             self.x_g = data.x
             self.y_g = data.y
@@ -179,6 +185,7 @@ class Navigator:
                 self.map_origin[1],
                 7,
                 self.map_probs,
+                thresh=0.2,
                 radius=self.radius
             )
             if self.x_g is not None:
@@ -273,13 +280,13 @@ class Navigator:
         are all properly set up / with the correct goals loaded
         """
         t = self.get_current_plan_time()
-
+        self.farFromPath = False
         if self.mode == Mode.PARK:
-            V, om = self.pose_controller.compute_control(
+            V, om, self.farFromPath = self.pose_controller.compute_control(
                 self.x, self.y, self.theta, t
             )
         elif self.mode == Mode.TRACK:
-            V, om = self.traj_controller.compute_control(
+            V, om, self.farFromPath = self.traj_controller.compute_control(
                 self.x, self.y, self.theta, t
             )
         elif self.mode == Mode.ALIGN:
@@ -338,6 +345,8 @@ class Navigator:
         success = problem.solve()
         if not success:
             rospy.loginfo("Planning failed\r\n")
+            if new_target:
+                self.switch_mode(Mode.IDLE)
             return
         rospy.loginfo("Planning Succeeded\r\n")
 
@@ -431,6 +440,10 @@ class Navigator:
             elif self.mode == Mode.TRACK:
                 if self.near_goal():
                     self.switch_mode(Mode.PARK)
+                elif self.farFromPath:
+                    rospy.loginfo("replanning because deviated too far from path\r\n")
+                    self.replan(new_target=True)
+                    self.farFromPath = False
                 elif not self.close_to_plan_start():
                     rospy.loginfo("replanning because far from start\r\n")
                     self.replan()
@@ -446,6 +459,11 @@ class Navigator:
                     self.y_g = None
                     self.theta_g = None
                     self.switch_mode(Mode.IDLE)
+                elif self.farFromPath:
+                    self.switch_mode(Mode.TRACK)
+                    rospy.loginfo("replanning because deviated too far from path\r\n")
+                    self.replan(new_target=True)
+                    self.farFromPath = False
 
             self.publish_control()
             self.nav_mode_pub.publish(self.mode)

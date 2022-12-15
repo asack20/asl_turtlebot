@@ -49,7 +49,7 @@ class StochOccupancyGrid2D(object):
     def snap_to_grid(self, x):
         return (self.resolution*round(x[0]/self.resolution), self.resolution*round(x[1]/self.resolution))
 
-    def is_free(self, state):
+    def is_free(self, state, thresh=0.2):
         # combine the probabilities of each cell by assuming independence
         # of each estimation
         x, y = self.snap_to_grid(state)
@@ -72,7 +72,7 @@ class StochOccupancyGrid2D(object):
         prob_window = self.probs[grid_y_lower:grid_y_upper, grid_x_lower:grid_x_upper]
         p_total = np.prod(1. - np.maximum(prob_window / 100., 0.))
 
-        return (1. - p_total) < self.thresh
+        return (1. - p_total) < thresh
 
     def plot(self, fig_num=0):
         fig = plt.figure(fig_num)

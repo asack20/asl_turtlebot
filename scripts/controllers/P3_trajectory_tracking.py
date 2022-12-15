@@ -4,6 +4,7 @@ import numpy as np
 from numpy import linalg
 
 V_PREV_THRES = 0.0001
+DIST_THRES = 0.3
 
 class TrajectoryTracker:
     """ Trajectory tracking controller using differential flatness """
@@ -49,7 +50,7 @@ class TrajectoryTracker:
 
         return x_d, xd_d, xdd_d, y_d, yd_d, ydd_d
 
-    def compute_control(self, x: float, y: float, th: float, t: float) -> T.Tuple[float, float]:
+    def compute_control(self, x: float, y: float, th: float, t: float) -> T.Tuple[float, float, bool]:
         """
         Inputs:
             x,y,th: Current state
@@ -57,6 +58,7 @@ class TrajectoryTracker:
         Outputs:
             V, om: Control actions
         """
+        errorOutput = False
 
         dt = t - self.t_prev
         x_d, xd_d, xdd_d, y_d, yd_d, ydd_d = self.get_desired_state(t)
@@ -67,6 +69,8 @@ class TrajectoryTracker:
                 self.V_prev = V_PREV_THRES
             else:
                 self.V_prev = -V_PREV_THRES
+        if (x_d - x) > DIST_THRES or (y_d) - y > DIST_THRES:
+            errorOutput = True
 
         x_dot = self.V_prev * np.cos(th)
         y_dot = self.V_prev * np.sin(th)
@@ -93,4 +97,4 @@ class TrajectoryTracker:
         self.V_prev = V
         self.om_prev = om
 
-        return V, om
+        return V, om, errorOutput

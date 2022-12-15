@@ -43,7 +43,7 @@ class SupervisorParams:
         self.stop_min_dist = rospy.get_param("~stop_min_dist", 0.5) # was formerly 0.3m
 
         # Time taken to cross an intersection
-        self.crossing_time = rospy.get_param("~crossing_time", 3.)
+        self.crossing_time = rospy.get_param("~crossing_time", 15.)
 
         if verbose:
             print("SupervisorParams:")
