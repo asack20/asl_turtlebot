@@ -72,7 +72,7 @@ class Navigator:
         self.om_max = 0.8  # maximum angular velocity
 
         self.v_des = 0.15  # desired cruising velocity
-        self.theta_start_thresh = 0.05  # threshold in theta to start moving forward when path-following
+        self.theta_start_thresh = 0.025  # threshold in theta to start moving forward when path-following
         self.start_pos_thresh = (
             0.2  # threshold to be far enough into the plan to recompute it
         )
@@ -80,7 +80,7 @@ class Navigator:
         # threshold at which navigator switches from trajectory to pose control
         self.near_thresh = 0.2
         self.at_thresh = 0.05
-        self.at_thresh_theta = 0.1
+        self.at_thresh_theta = 0.15
 
         # trajectory smoothing
         self.spline_alpha = 0.15
@@ -100,7 +100,7 @@ class Navigator:
             self.kpx, self.kpy, self.kdx, self.kdy, self.v_max, self.om_max
         )
         self.pose_controller = PoseController(
-            0.4, 0.8, 0.4, self.v_max, self.om_max
+            0.4, 0.8, 0.8, self.v_max, self.om_max
         )
         self.heading_controller = HeadingController(self.kp_th, self.om_max)
 
@@ -310,7 +310,26 @@ class Navigator:
         t = (rospy.get_rostime() - self.current_plan_start_time).to_sec()
         return max(0.0, t)  # clip negative time to 0
 
-    def replan(self, new_target=False, thresh=0.4):
+    def test_path(self, thresh=0.3):
+        if not self.occupancy or not self.traj_controller:
+            return True
+        x_path = self.traj_controller.traj[:,0]
+        y_path = self.traj_controller.traj[:,1]
+        grid_x = np.zeros_like(x_path)
+        grid_y = np.zeros_like(y_path)
+        prob_path = np.zeros_like(x_path)
+        for i in range(x_path.shape[0]):
+            (x,y) = self.occupancy.snap_to_grid((x_path[i], y_path[i]))
+            grid_x = int((x - self.occupancy.origin_x) / self.occupancy.resolution)
+            grid_y = int((y - self.occupancy.origin_y) / self.occupancy.resolution)
+            prob_path[i] = self.occupancy.probs[grid_y, grid_x]
+        #prob_path = self.occupancy.probs[grid_y, grid_x]
+        p_total = np.prod(1. - np.maximum(prob_path / 100., 0.))
+        return (1. - p_total) < thresh
+        #return True
+
+
+    def replan(self, new_target=False, thresh=0.5):
         """
         loads goal into pose controller
         runs planner based on current pose
@@ -328,7 +347,13 @@ class Navigator:
             )
             self.switch_mode(Mode.IDLE)
             return
-
+        if not new_target and not self.test_path():
+            new_target = True
+        if new_target:
+            cmd_vel = Twist()
+            cmd_vel.linear.x = 0.0
+            cmd_vel.angular.z = 0.0
+            self.nav_vel_pub.publish(cmd_vel)
         # Attempt to plan a path
         state_min = self.snap_to_grid((-self.plan_horizon, -self.plan_horizon))
         state_max = self.snap_to_grid((self.plan_horizon, self.plan_horizon))
@@ -351,9 +376,9 @@ class Navigator:
         success = problem.solve()
         if not success:
             rospy.loginfo("Planning failed\r\n")
-            #if new_target:
-            #    thresh += 0.05
-            #    self.replan(new_target=True, thresh=thresh)
+            if new_target and thresh <= 0.8:
+                thresh += 0.1
+                self.replan(new_target=True, thresh=thresh)
             return
         rospy.loginfo("Planning Succeeded\r\n")
 
@@ -473,6 +498,7 @@ class Navigator:
                     self.switch_mode(Mode.IDLE)
                 elif self.farFromPath:
                     self.switch_mode(Mode.TRACK)
+
                     rospy.loginfo("replanning because deviated too far from path\r\n")
                     self.replan(new_target=True)
                     self.farFromPath = False

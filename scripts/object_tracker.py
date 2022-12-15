@@ -13,7 +13,7 @@ from visualization_msgs.msg import Marker
 from utils import wrapToPi
 from copy import deepcopy
 
-KNOWN_OBJECT_TAGS = ['fire_hydrant', 'chair', 'cow', 'bicycle', 'cat'] # 'person', 'banana'
+KNOWN_OBJECT_TAGS = ['fire_hydrant', 'chair', 'bicycle', 'cat', 'kite'] # 'person', 'banana', 'dog', 'elephant', 'cow', 'boat'
 
 class ObjectTracker:
 
@@ -82,12 +82,14 @@ class ObjectTracker:
         rospy.Subscriber("/detector/fire_hydrant", DetectedObject, self.fire_hydrant_callback)
         rospy.Subscriber("/detector/chair", DetectedObject, self.chair_callback)
         # rospy.Subscriber("/detector/person", DetectedObject, self.person_callback)
-        rospy.Subscriber("/detector/elephant", DetectedObject, self.elephant_callback)
+        # rospy.Subscriber("/detector/elephant", DetectedObject, self.elephant_callback)
         rospy.Subscriber("/detector/cat", DetectedObject, self.cat_callback)
         # rospy.Subscriber("/detector/dog", DetectedObject, self.dog_callback)
         rospy.Subscriber("/detector/bicycle", DetectedObject, self.bicycle_callback)
         # rospy.Subscriber("/detector/banana", DetectedObject, self.banana_callback)
-        rospy.Subscriber("/detector/cow", DetectedObject, self.cow_callback)
+        # rospy.Subscriber("/detector/cow", DetectedObject, self.cow_callback)
+        # rospy.Subscriber("/detector/boat", DetectedObject, self.boat_callback)
+        rospy.Subscriber("/detector/kite", DetectedObject, self.kite_callback)
 
         rospy.Subscriber("/rescuer/obj_collected_name", String, self.collect_object_callback)
 
@@ -104,6 +106,15 @@ class ObjectTracker:
 
     def stop_sign_callback(self, msg):
         new_coords = self.calc_object_coords(msg.distance, msg.thetaleft, msg.thetaright)
+
+        # don't include sightings too far away
+        if msg.distance > 1:
+            return
+
+        # ignore sightings outside the bounds of the map
+        if (new_coords[0] < 0) or  (new_coords[1] < 0) or (new_coords[0] > 3.65) or  (new_coords[1] > 3.05):
+            return
+
         for coords in self.found_stop_signs:
             if np.sqrt((coords[0] - new_coords[0])**2 + (coords[1] - new_coords[1])**2) < 1:
                 # repeat sighting
@@ -131,9 +142,9 @@ class ObjectTracker:
     #     self.emote_pub.publish("Doh!")
     #     self.update_found_object(msg)
 
-    def elephant_callback(self, msg):
-        self.emote_pub.publish("Trumpet!")
-        self.update_found_object(msg)
+    # def elephant_callback(self, msg):
+    #     self.emote_pub.publish("Trumpet!")
+    #     self.update_found_object(msg)
 
     def cat_callback(self, msg):
         self.emote_pub.publish("Meow")
@@ -151,8 +162,16 @@ class ObjectTracker:
     #     self.emote_pub.publish("Watch your step")
     #     self.update_found_object(msg)
     
-    def cow_callback(self, msg):
-        self.emote_pub.publish("Moooooo")
+    # def cow_callback(self, msg):
+    #     self.emote_pub.publish("Moooooo")
+    #     self.update_found_object(msg)
+
+    def boat_callback(self, msg):
+        self.emote_pub.publish("Ahoy matey!")
+        self.update_found_object(msg)
+
+    def kite_callback(self, msg):
+        self.emote_pub.publish("Swoosh!")
         self.update_found_object(msg)
 
     def rescue_list_callback(self, msg):

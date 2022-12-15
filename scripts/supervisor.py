@@ -37,13 +37,13 @@ class SupervisorParams:
         # self.theta_eps = rospy.get_param("~theta_eps", 0.3)
 
         # Time to stop at a stop sign
-        self.stop_time = rospy.get_param("~stop_time", 3.)
+        self.stop_time = rospy.get_param("~stop_time", 2.)
 
         # Minimum distance from a stop sign to obey it
-        self.stop_min_dist = rospy.get_param("~stop_min_dist", 0.5) # was formerly 0.3m
+        self.stop_min_dist = rospy.get_param("~stop_min_dist", 0.75) # was formerly 0.3m
 
         # Time taken to cross an intersection
-        self.crossing_time = rospy.get_param("~crossing_time", 15.)
+        self.crossing_time = rospy.get_param("~crossing_time", 7.5)
 
         if verbose:
             print("SupervisorParams:")

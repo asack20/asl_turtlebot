@@ -40,8 +40,8 @@ class AStar(object):
               useful here
         """
         ########## Code starts here ##########
-        pos_x = x[0]
-        pos_y = x[1]
+        #pos_x = x[0]
+        #pos_y = x[1]
         return self.occupancy.is_free(x, self.thresh) and x[0] + self.radius <= self.statespace_hi[0] and x[0] - self.radius >= self.statespace_lo[0] and x[1] + self.radius <= self.statespace_hi[1] and x[1] - self.radius >= self.statespace_lo[1]
 
         #return self.occupancy.is_free(x) and self.occupancy.is_free((pos_x-self.radius, pos_y-self.radius)) and self.occupancy.is_free((pos_x+self.radius, pos_y-self.radius)) and self.occupancy.is_free((pos_x-self.radius, pos_y+self.radius)) and self.occupancy.is_free((pos_x+self.radius, pos_y+self.radius)) and x[0] + self.radius <= self.statespace_hi[0] and x[0] - self.radius >= self.statespace_lo[0] and x[1] + self.radius <= self.statespace_hi[1] and x[1] - self.radius >= self.statespace_lo[1]
