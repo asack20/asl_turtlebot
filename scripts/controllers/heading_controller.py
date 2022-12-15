@@ -10,7 +10,7 @@ class HeadingController:
     """
     pose stabilization controller
     """
-    def __init__(self, kp, om_max=1):
+    def __init__(self, kp, om_max=1.0):
         self.kp = kp
         self.om_max = om_max
 

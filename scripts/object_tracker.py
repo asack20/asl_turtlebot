@@ -13,7 +13,7 @@ from visualization_msgs.msg import Marker
 from utils import wrapToPi
 from copy import deepcopy
 
-KNOWN_OBJECT_TAGS = ['fire_hydrant', 'chair', 'person', 'cow', 'bicycle', 'banana']
+KNOWN_OBJECT_TAGS = ['fire_hydrant', 'chair', 'cow', 'bicycle', 'cat'] # 'person', 'banana'
 
 class ObjectTracker:
 
@@ -81,9 +81,12 @@ class ObjectTracker:
         rospy.Subscriber("/detector/stop_sign", DetectedObject, self.stop_sign_callback)
         rospy.Subscriber("/detector/fire_hydrant", DetectedObject, self.fire_hydrant_callback)
         rospy.Subscriber("/detector/chair", DetectedObject, self.chair_callback)
-        rospy.Subscriber("/detector/person", DetectedObject, self.person_callback)
+        # rospy.Subscriber("/detector/person", DetectedObject, self.person_callback)
+        rospy.Subscriber("/detector/elephant", DetectedObject, self.elephant_callback)
+        rospy.Subscriber("/detector/cat", DetectedObject, self.cat_callback)
+        # rospy.Subscriber("/detector/dog", DetectedObject, self.dog_callback)
         rospy.Subscriber("/detector/bicycle", DetectedObject, self.bicycle_callback)
-        rospy.Subscriber("/detector/banana", DetectedObject, self.banana_callback)
+        # rospy.Subscriber("/detector/banana", DetectedObject, self.banana_callback)
         rospy.Subscriber("/detector/cow", DetectedObject, self.cow_callback)
 
         rospy.Subscriber("/rescuer/obj_collected_name", String, self.collect_object_callback)
@@ -124,17 +127,29 @@ class ObjectTracker:
         self.emote_pub.publish("Take a seat")
         self.update_found_object(msg)
 
-    def person_callback(self, msg):
-        self.emote_pub.publish("Doh!")
+    # def person_callback(self, msg):
+    #     self.emote_pub.publish("Doh!")
+    #     self.update_found_object(msg)
+
+    def elephant_callback(self, msg):
+        self.emote_pub.publish("Trumpet!")
         self.update_found_object(msg)
+
+    def cat_callback(self, msg):
+        self.emote_pub.publish("Meow")
+        self.update_found_object(msg)
+
+    # def dog_callback(self, msg):
+    #     self.emote_pub.publish("Woof")
+    #     self.update_found_object(msg)
     
     def bicycle_callback(self, msg):
         self.emote_pub.publish("On your left")
         self.update_found_object(msg)
     
-    def banana_callback(self, msg):
-        self.emote_pub.publish("Watch your step")
-        self.update_found_object(msg)
+    # def banana_callback(self, msg):
+    #     self.emote_pub.publish("Watch your step")
+    #     self.update_found_object(msg)
     
     def cow_callback(self, msg):
         self.emote_pub.publish("Moooooo")
@@ -145,6 +160,7 @@ class ObjectTracker:
         if name in self.found_objects.keys():
             self.rescue_list.append(name)
             print(self.rescue_list)
+            print('\r\n')
 
         ############ Code ends here ############
 
@@ -242,11 +258,13 @@ class ObjectTracker:
         self.project_phase = rospy.get_param("/project_phase", "EXPLORE")
         if (last_phase == 'EXPLORE') and (self.project_phase == 'RESCUE'):
             rospy.loginfo("Entering RESCUE from EXPLORE\r\n")
-            # for key in self.found_objects.keys():
-            #     print(key)
-            #     if key not in self.rescue_list:
-            #         self.found_objects.pop(key)
-            #         #rospy.loginfo("Not collecting %s\r\n", key)
+            dummy_found_object_keys = []
+            for key in self.found_objects.keys():
+                if key not in self.rescue_list:
+                    dummy_found_object_keys.append(key)
+            for key in dummy_found_object_keys:
+                self.found_objects.pop(key,None)
+                rospy.loginfo("Not collecting %s\r\n", key)
             rospy.loginfo("Will collect the following: \r\n")
             for key in self.found_objects.keys():
                 rospy.loginfo("\t%s\r\n", key)
@@ -255,6 +273,10 @@ class ObjectTracker:
             (translation, rotation) = self.trans_listener.lookupTransform(
                 "/map", "/base_footprint", rospy.Time(0)
             )
+            #now = rospy.Time.now()
+            #self.trans_listener.waitForTransform("/map", "/base_footprint", now, rospy.Duration(4.0))
+            #(translation, rotation) = self.trans_listener.lookupTransform(
+            #    "/map", "/base_footprint", now)
             self.pose.x = translation[0]
             self.pose.y = translation[1]
             euler = tf.transformations.euler_from_quaternion(rotation)

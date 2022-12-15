@@ -6,7 +6,7 @@ from utils import plot_line_segments
 class AStar(object):
     """Represents a motion planning problem to be solved using A*"""
 
-    def __init__(self, statespace_lo, statespace_hi, x_init, x_goal, occupancy, resolution=0.0, radius=0.09)->None:
+    def __init__(self, statespace_lo, statespace_hi, x_init, x_goal, occupancy, resolution=0.0, radius=0.09, thresh=0.3)->None:
         self.statespace_lo = np.array(statespace_lo)         # state space lower bound (e.g., [-5, -5])
         self.statespace_hi = np.array(statespace_hi)         # state space upper bound (e.g., [5, 5])
         self.occupancy = occupancy                 # occupancy grid (a DetOccupancyGrid2D object)
@@ -26,7 +26,7 @@ class AStar(object):
 
         self.path = None        # the final path as a list of states
         self.radius = radius
-        self.thresh = 0.25
+        self.thresh = thresh
 
     def is_free(self, x):
         """
@@ -185,11 +185,10 @@ class AStar(object):
         """
         ########## Code starts here ##########
         count = 0
-        self.thresh = 0.2
-        while (len(self.open_set) > 0) and (count < 30000):
+        self.thresh = 0.3
+        while (len(self.open_set) > 0) and (count < 20000):
             count += 1
-            if self.thresh < 0.8:
-                self.thresh += 0.0001
+
             x_current = self.find_best_est_cost_through()
             if x_current == self.x_goal:
                 self.path = self.reconstruct_path()

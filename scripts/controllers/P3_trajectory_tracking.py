@@ -4,7 +4,7 @@ import numpy as np
 from numpy import linalg
 
 V_PREV_THRES = 0.0001
-DIST_THRES = 0.3
+DIST_THRES = 0.25
 
 class TrajectoryTracker:
     """ Trajectory tracking controller using differential flatness """

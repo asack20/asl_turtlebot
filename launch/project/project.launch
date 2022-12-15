@@ -2,11 +2,11 @@
   <arg name="sim" default="true"/>
 
   <include file="$(find asl_turtlebot)/launch/root.launch">
-    <arg name="world" value="project_city7" />
+    <arg name="world" value="project_city8" />
     <arg name="x_pos" default="3.15"/>
     <arg name="y_pos" default="1.6"/>
     <arg name="z_pos" default="0.0"/>
-    <arg name="gui" default="false" />
+    <arg name="gui" default="true" />
     <arg name="rviz" default="project"/>
     <arg name="model" default="asl_turtlebot"/>
     <arg name="sim" default="$(arg sim)"/>

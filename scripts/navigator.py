@@ -71,7 +71,7 @@ class Navigator:
         self.v_max = 0.4  # maximum velocity
         self.om_max = 0.8  # maximum angular velocity
 
-        self.v_des = 0.12  # desired cruising velocity
+        self.v_des = 0.15  # desired cruising velocity
         self.theta_start_thresh = 0.05  # threshold in theta to start moving forward when path-following
         self.start_pos_thresh = (
             0.2  # threshold to be far enough into the plan to recompute it
@@ -79,22 +79,22 @@ class Navigator:
 
         # threshold at which navigator switches from trajectory to pose control
         self.near_thresh = 0.2
-        self.at_thresh = 0.02
-        self.at_thresh_theta = 0.05
+        self.at_thresh = 0.05
+        self.at_thresh_theta = 0.1
 
         # trajectory smoothing
         self.spline_alpha = 0.15
-        self.spline_deg = 3  # cubic spline
+        self.spline_deg = 3  # 5-th order spline
         self.traj_dt = 0.1
 
         # trajectory tracking controller parameters
-        self.kpx = 0.5
-        self.kpy = 0.5
+        self.kpx = 0.8
+        self.kpy = 0.8
         self.kdx = 1.5
         self.kdy = 1.5
 
         # heading controller parameters
-        self.kp_th = 4.0
+        self.kp_th = 2.0
 
         self.traj_controller = TrajectoryTracker(
             self.kpx, self.kpy, self.kdx, self.kdy, self.v_max, self.om_max
@@ -155,7 +155,11 @@ class Navigator:
             self.x_g = data.x
             self.y_g = data.y
             self.theta_g = data.theta
+            #self.switch_mode(Mode.IDLE)
+
             self.replan(new_target=True)
+            #self.switch_mode(Mode.TRACK)
+
 
     def map_md_callback(self, msg):
         """
@@ -306,7 +310,7 @@ class Navigator:
         t = (rospy.get_rostime() - self.current_plan_start_time).to_sec()
         return max(0.0, t)  # clip negative time to 0
 
-    def replan(self, new_target=False):
+    def replan(self, new_target=False, thresh=0.4):
         """
         loads goal into pose controller
         runs planner based on current pose
@@ -331,6 +335,7 @@ class Navigator:
         x_init = self.snap_to_grid((self.x, self.y))
         self.plan_start = x_init
         x_goal = self.snap_to_grid((self.x_g, self.y_g))
+        
         problem = AStar(
             state_min,
             state_max,
@@ -338,15 +343,17 @@ class Navigator:
             x_goal,
             self.occupancy,
             self.plan_resolution,
-            self.radius
+            self.radius,
+            thresh
         )
 
         rospy.loginfo("Navigator: computing navigation plan\r\n")
         success = problem.solve()
         if not success:
             rospy.loginfo("Planning failed\r\n")
-            if new_target:
-                self.switch_mode(Mode.IDLE)
+            #if new_target:
+            #    thresh += 0.05
+            #    self.replan(new_target=True, thresh=thresh)
             return
         rospy.loginfo("Planning Succeeded\r\n")
 
@@ -414,6 +421,11 @@ class Navigator:
                 (translation, rotation) = self.trans_listener.lookupTransform(
                     "/map", "/base_footprint", rospy.Time(0)
                 )
+                #now = rospy.Time.now()
+                #self.trans_listener.waitForTransform("/map", "/base_footprint", now, rospy.Duration(4.0))
+                #(translation, rotation) = self.trans_listener.lookupTransform(
+                #    "/map", "/base_footprint", now)
+
                 self.x = translation[0]
                 self.y = translation[1]
                 euler = tf.transformations.euler_from_quaternion(rotation)
@@ -451,7 +463,7 @@ class Navigator:
                     rospy.get_rostime() - self.current_plan_start_time
                 ).to_sec() > self.current_plan_duration:
                     rospy.loginfo("replanning because out of time\r\n")
-                    self.replan()  # we aren't near the goal but we thought we should have been, so replan
+                    self.replan(new_target=True)  # we aren't near the goal but we thought we should have been, so replan
             elif self.mode == Mode.PARK:
                 if self.at_goal():
                     # forget about goal:

@@ -119,6 +119,10 @@ class Rescuer:
             (translation, rotation) = self.trans_listener.lookupTransform(
                 "/map", "/base_footprint", rospy.Time(0)
                 )
+            #now = rospy.Time.now()
+            #self.trans_listener.waitForTransform("/map", "/base_footprint", now, rospy.Duration(4.0))
+            #(translation, rotation) = self.trans_listener.lookupTransform(
+            #    "/map", "/base_footprint", now)
             self.x = translation[0]
             self.y = translation[1]
             # euler = tf.transformations.euler_from_quaternion(rotation)
