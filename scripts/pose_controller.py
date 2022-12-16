@@ -129,9 +129,13 @@ class PoseControllerNode:
         if not self.params.use_gazebo:
             try:
                 origin_frame = "/map" if self.params.mapping else "/odom"
-                translation, rotation = self.trans_listener.lookupTransform(
+                (translation, rotation) = self.trans_listener.lookupTransform(
                     origin_frame, "/base_footprint", rospy.Time(0)
                 )
+                #now = rospy.Time.now()
+                #self.trans_listener.waitForTransform(origin_frame, "/base_footprint", now, rospy.Duration(4.0))
+                #(translation, rotation) = self.trans_listener.lookupTransform(
+                #    origin_frame, "/base_footprint", now)
                 self.x, self.y = translation[0], translation[1]
                 self.theta = tf.transformations.euler_from_quaternion(rotation)[
                     2

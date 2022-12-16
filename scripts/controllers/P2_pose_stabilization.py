@@ -7,6 +7,7 @@ from utils import wrapToPi
 RHO_THRES = 0.05
 ALPHA_THRES = 0.1
 DELTA_THRES = 0.1
+DIST_THRES = 0.25
 
 class PoseController:
     """ Pose stabilization controller """
@@ -25,7 +26,7 @@ class PoseController:
         self.y_g = y_g
         self.th_g = th_g
 
-    def compute_control(self, x: float, y: float, th: float, t: float) -> T.Tuple[float, float]:
+    def compute_control(self, x: float, y: float, th: float, t: float) -> T.Tuple[float, float, bool]:
         """
         Inputs:
             x,y,th: Current state
@@ -37,8 +38,11 @@ class PoseController:
         may also be useful, look up its documentation
         """
         ########## Code starts here ##########
+        errorOutput = False
         rho = np.sqrt(np.square(self.x_g - x) + np.square(self.y_g - y))
-
+        if rho > DIST_THRES:
+            errorOutput = True
+        
         beta = np.arctan2((self.y_g - y), (self.x_g - x))
 
         alpha = wrapToPi(beta - th)
@@ -53,4 +57,7 @@ class PoseController:
         V = np.clip(V, -self.V_max, self.V_max)
         om = np.clip(om, -self.om_max, self.om_max)
 
-        return V, om
+        #if rho < RHO_THRES and alpha <= ALPHA_THRES and delta <= DELTA_THRES:
+         #   V = 0.0
+          #  om = 0.0
+        return V, om, errorOutput
